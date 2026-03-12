@@ -1,0 +1,12 @@
+scapy
+pandas
+numpy
+scikit-learn
+pymongo
+fastapi
+uvicorn
+matplotlib
+seaborn
+python-dotenv
+joblib
+requests
