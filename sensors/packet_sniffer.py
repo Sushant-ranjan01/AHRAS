@@ -27,7 +27,7 @@ def process_packet(packet):
             else:
                 packet_data["transport"] = "OTHER"
 
-            print(packet_data)
+            #print(packet_data)
 
             return packet_data
 
