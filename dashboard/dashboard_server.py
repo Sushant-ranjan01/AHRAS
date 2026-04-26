@@ -1,18 +1,15 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from event_management.mongodb_client import MongoDBClient
-from analytics.attack_trends import AttackTrends
 
 import socket
 import platform
 import requests
+from datetime import datetime
 
 app = FastAPI()
-
 mongo_client = MongoDBClient()
-analyzer = AttackTrends(mongo_client)
 
-# CACHE
 geo_cache = {}
 dns_cache = {}
 
@@ -48,50 +45,84 @@ def get_geo(ip):
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
 
-    data = analyzer.analyze()
+    events = mongo_client.get_all_events()
 
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
     os_info = platform.system() + " " + platform.release()
 
-    attackers = sorted(data.get("top_5_attackers", []), key=lambda x: x[1], reverse=True)
+    # 🔥 REAL AGGREGATION
+    ip_data = {}
+
+    for event in events:
+        ip = event.get("source_ip")
+        if not ip:
+            continue
+
+        risk = event.get("risk_score", 0)
+        threat = event.get("threat_level", "LOW")
+        timestamp = event.get("timestamp")
+
+        if ip not in ip_data:
+            ip_data[ip] = {
+                "count": 0,
+                "max_risk": 0,
+                "total_risk": 0,
+                "latest_threat": threat,
+                "last_seen": timestamp
+            }
+
+        ip_data[ip]["count"] += 1
+        ip_data[ip]["total_risk"] += risk
+        ip_data[ip]["max_risk"] = max(ip_data[ip]["max_risk"], risk)
+
+        if timestamp:
+            ip_data[ip]["last_seen"] = timestamp
+            ip_data[ip]["latest_threat"] = threat
+
+    # compute averages
+    for ip in ip_data:
+        data = ip_data[ip]
+        data["avg_risk"] = data["total_risk"] / data["count"]
+
+    # 🔥 SORT BY REAL RISK (NOT COUNT)
+    attackers = sorted(
+        ip_data.items(),
+        key=lambda x: x[1]["max_risk"],
+        reverse=True
+    )[:5]
 
     labels = [ip for ip, _ in attackers]
-    values = [count for _, count in attackers]
-
-    max_count = max(values) if values else 1
+    values = [data["max_risk"] for _, data in attackers]
 
     geo_points = []
     table_rows = ""
 
-    for ip, count in attackers:
+    for ip, data in attackers:
 
         domain = resolve_ip(ip)
         geo = get_geo(ip)
 
         geo_points.append([geo["lat"], geo["lon"], ip])
 
-        ratio = count / max_count
-        risk_score = int(ratio * 100)
+        severity = data["latest_threat"]
+        risk_score = int(data["max_risk"])
 
-        if ratio > 0.7:
-            severity = "HIGH"
+        if severity == "CRITICAL":
             badge = "high"
-        elif ratio > 0.3:
-            severity = "MEDIUM"
+        elif severity == "HIGH":
+            badge = "high"
+        elif severity == "MEDIUM":
             badge = "medium"
         else:
-            severity = "LOW"
             badge = "low"
 
-        highlight = "background:#334155;" if count == max_count else ""
-
         table_rows += f"""
-        <tr style="{highlight}" title="IP: {ip} | Domain: {domain}">
+        <tr>
             <td>{ip}</td>
             <td class="domain">{domain}</td>
             <td>{geo['country']}</td>
-            <td class="num">{count}</td>
+            <td class="num">{data['count']}</td>
             <td class="num">{risk_score}</td>
             <td><span class="badge {badge}">{severity}</span></td>
         </tr>
@@ -122,14 +153,8 @@ def dashboard():
 
             .navbar h1 {{
                 margin:0;
-                font-size:26px;
+                font-size:28px;
                 color:#38bdf8;
-            }}
-
-            .navbar p {{
-                font-size:13px;
-                color:#94a3b8;
-                margin-top:5px;
             }}
 
             .section {{
@@ -139,49 +164,21 @@ def dashboard():
                 border-radius:10px;
             }}
 
-            /* ✅ FIXED TABLE GRID */
             table {{
                 width:100%;
                 border-collapse:collapse;
-                table-layout:fixed;
             }}
 
             th, td {{
                 padding:10px;
                 border:1px solid #334155;
-                overflow:hidden;
-                text-overflow:ellipsis;
-                white-space:nowrap;
             }}
-
-            /* ✅ COLUMN WIDTH CONTROL */
-            th:nth-child(1), td:nth-child(1) {{ width:15%; }}
-            th:nth-child(2), td:nth-child(2) {{ width:30%; }}
-            th:nth-child(3), td:nth-child(3) {{ width:15%; }}
-            th:nth-child(4), td:nth-child(4) {{ width:10%; }}
-            th:nth-child(5), td:nth-child(5) {{ width:10%; }}
-            th:nth-child(6), td:nth-child(6) {{ width:10%; }}
 
             th {{
-                color:#94a3b8;
-                font-size:12px;
                 background:#020617;
-                text-transform:uppercase;
+                color:#94a3b8;
             }}
 
-            tr:hover {{
-                background:#334155;
-            }}
-
-            .num {{
-                text-align:right;
-            }}
-
-            .domain {{
-                color:#cbd5f5;
-            }}
-
-            /* BADGES */
             .badge {{
                 padding:5px 10px;
                 border-radius:12px;
@@ -193,10 +190,7 @@ def dashboard():
             .medium {{ background:#f59e0b; color:black; }}
             .low {{ background:#22c55e; }}
 
-            #map {{
-                height:300px;
-                border-radius:10px;
-            }}
+            #map {{ height:300px; }}
         </style>
     </head>
 
@@ -204,11 +198,11 @@ def dashboard():
 
         <div class="navbar">
             <h1>AHRAS Security Operations Center</h1>
-            <p>Endpoint: {hostname} | IP: {local_ip} | OS: {os_info}</p>
+            <p>{hostname} | {local_ip} | {os_info}</p>
         </div>
 
         <div class="section">
-            <h3>Threat Intelligence</h3>
+            <h3>Threat Intelligence (Risk-Based)</h3>
             <table>
                 <tr>
                     <th>IP</th>
@@ -223,8 +217,8 @@ def dashboard():
         </div>
 
         <div class="section">
-            <h3>Attack Trends</h3>
-            <canvas id="chart" style="max-height:250px;"></canvas>
+            <h3>Top Risk Distribution</h3>
+            <canvas id="chart"></canvas>
         </div>
 
         <div class="section">
@@ -233,20 +227,13 @@ def dashboard():
         </div>
 
         <script>
-
-            // 10 min refresh
-            setTimeout(() => location.reload(), 600000);
-
             new Chart(document.getElementById('chart'), {{
                 type: 'bar',
                 data: {{
                     labels: {labels},
                     datasets: [{{
-                        label: 'Attack Volume',
-                        data: {values},
-                        backgroundColor: '#f97316',
-                        barPercentage: 0.5,
-                        categoryPercentage: 0.5
+                        label: 'Max Risk Score',
+                        data: {values}
                     }}]
                 }}
             }});
@@ -259,11 +246,9 @@ def dashboard():
 
             points.forEach(p => {{
                 if (p[0] !== 0)
-                    L.marker([p[0], p[1]])
-                        .addTo(map)
+                    L.marker([p[0], p[1]]).addTo(map)
                         .bindPopup("IP: " + p[2]);
             }});
-
         </script>
 
     </body>

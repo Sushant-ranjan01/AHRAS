@@ -1,5 +1,9 @@
 from scapy.all import sniff
 from datetime import datetime
+from sensors.traffic_listener import TrafficListener
+
+
+listener = TrafficListener()
 
 
 def process_packet(packet):
@@ -27,12 +31,17 @@ def process_packet(packet):
             else:
                 packet_data["transport"] = "OTHER"
 
-            #print(packet_data)
-
             return packet_data
 
     except Exception as e:
         print("Packet processing error:", e)
+
+
+def handle_packet(packet):
+    parsed = process_packet(packet)
+
+    if parsed:
+        listener.handle_packet(parsed)
 
 
 def start_sniffing():
@@ -40,7 +49,7 @@ def start_sniffing():
     print("AHRAS Packet Sniffer Started...\n")
 
     sniff(
-        prn=process_packet,
+        prn=handle_packet,
         store=False
     )
 
