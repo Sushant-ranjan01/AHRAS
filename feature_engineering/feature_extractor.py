@@ -1,56 +1,50 @@
-from collections import defaultdict
-import time
+from feature_engineering.flow_features import FlowFeatures
+from feature_engineering.preprocessing import Preprocessor
 
 
 class FeatureExtractor:
 
     def __init__(self):
-        self.ip_packet_count = defaultdict(int)
-        self.ip_ports = defaultdict(set)
-        self.protocol_count = defaultdict(int)
-        self.packet_timestamps = []
+        self.flow_features = FlowFeatures()
+        self.preprocessor = Preprocessor()
 
-    def extract_features(self, packet_data):
+    def safe(self, value):
+        if value is None:
+            return 0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return int(value)
+        except:
+            return 0
 
-        src_ip = packet_data.get("src_ip")
-        dst_port = packet_data.get("dst_port")
-        protocol = packet_data.get("transport")
+    def extract(self, flow_data):
 
-        # Count packets per source IP
-        self.ip_packet_count[src_ip] += 1
+        try:
+            raw = self.flow_features.extract(flow_data) or {}
+        except Exception as e:
+            print("Flow feature error:", e)
+            raw = {}
 
-        # Track accessed ports
-        if dst_port:
-            self.ip_ports[src_ip].add(dst_port)
-
-        # Track protocol usage
-        if protocol:
-            self.protocol_count[protocol] += 1
-
-        # Track timestamps
-        self.packet_timestamps.append(time.time())
-
-        # Calculate packet rate
-        packet_rate = self.calculate_packet_rate()
-
-        features = {
-            "src_ip": src_ip,
-            "packet_count": self.ip_packet_count[src_ip],
-            "unique_ports": len(self.ip_ports[src_ip]),
-            "protocol": protocol,
-            "packet_rate": packet_rate
+        safe_features = {
+            "packet_count": self.safe(raw.get("packet_count")),
+            "protocol": self.safe(raw.get("protocol")),
+            "src_port": self.safe(raw.get("src_port")),
+            "dst_port": self.safe(raw.get("dst_port"))
         }
 
-        return features
+        try:
+            processed = self.preprocessor.normalize(safe_features)
 
-    def calculate_packet_rate(self):
+            if not isinstance(processed, dict):
+                processed = safe_features
 
-        current_time = time.time()
+        except Exception as e:
+            print("Preprocessing error:", e)
+            processed = safe_features
 
-        # Keep only last 10 seconds
-        self.packet_timestamps = [
-            t for t in self.packet_timestamps
-            if current_time - t <= 10
-        ]
+        for k in safe_features:
+            if k not in processed:
+                processed[k] = safe_features[k]
 
-        return len(self.packet_timestamps) / 10
+        return processed

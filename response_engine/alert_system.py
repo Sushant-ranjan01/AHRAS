@@ -6,15 +6,23 @@ class AlertSystem:
     def __init__(self):
         self.last_alert_time = {}
 
+    def safe(self, value, default=0):
+        if value is None:
+            return default
+        return value
+
     def generate_alert(self, event):
 
-        ip = event.get("source_ip")
-        threat = event.get("threat_level")
-        risk = event.get("risk_score")
+        if not isinstance(event, dict):
+            return None
+
+        ip = event.get("source_ip") or "unknown"
+        threat = event.get("threat_level") or "LOW"
+        risk = self.safe(event.get("risk_score"), 0)
 
         current_time = time.time()
 
-        # Prevent alert spam (cooldown 30 sec)
+        # 🔥 cooldown protection
         if ip in self.last_alert_time:
             if current_time - self.last_alert_time[ip] < 30:
                 return None

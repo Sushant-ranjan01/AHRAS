@@ -11,37 +11,60 @@ class AnomalyDetector:
         )
         self.trained = False
 
+    def safe_vector(self, vector):
+        """Ensure all values are numeric"""
+        clean = []
+
+        for v in vector:
+            if isinstance(v, (int, float)):
+                clean.append(v)
+            else:
+                try:
+                    clean.append(float(v))
+                except:
+                    clean.append(0)
+
+        return clean
+
     def train(self, training_data):
 
-        """
-        Train the anomaly model using normal network traffic
-        """
+        try:
+            X = np.array(training_data)
 
-        X = np.array(training_data)
+            if len(X.shape) != 2:
+                print("Invalid training data shape")
+                return
 
-        self.model.fit(X)
-        self.trained = True
+            self.model.fit(X)
+            self.trained = True
 
-        print("Anomaly model trained successfully.")
+            print("Anomaly model trained successfully.")
+
+        except Exception as e:
+            print("Training error:", e)
 
     def predict(self, feature_vector):
 
-        """
-        Predict whether behavior is normal or anomalous
-        """
-
         if not self.trained:
-            print("Model not trained yet.")
             return {"anomaly_score": 0, "is_anomaly": False}
 
-        X = np.array([feature_vector])
+        try:
+            # 🔥 sanitize input
+            feature_vector = self.safe_vector(feature_vector)
 
-        prediction = self.model.predict(X)
-        score = self.model.decision_function(X)
+            X = np.array([feature_vector])
 
-        result = {
-            "anomaly_score": float(score[0]),
-            "is_anomaly": True if prediction[0] == -1 else False
-        }
+            if len(X.shape) != 2:
+                return {"anomaly_score": 0, "is_anomaly": False}
 
-        return result
+            prediction = self.model.predict(X)
+            score = self.model.decision_function(X)
+
+            return {
+                "anomaly_score": float(score[0]),
+                "is_anomaly": True if prediction[0] == -1 else False
+            }
+
+        except Exception as e:
+            print("Prediction error:", e)
+            return {"anomaly_score": 0, "is_anomaly": False}

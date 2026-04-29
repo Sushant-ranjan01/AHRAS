@@ -1,44 +1,39 @@
+from detection.signature_engine.signature_detector import SignatureDetector
+from detection.anomaly_engine.predict_anomaly import AnomalyDetector
+from feature_engineering.feature_extractor import FeatureExtractor
+
+
 class HybridDetector:
 
     def __init__(self):
-        # weights for hybrid model (static baseline)
-        self.signature_weight = 0.6
-        self.anomaly_weight = 0.4
+        self.signature_detector = SignatureDetector()
+        self.anomaly_detector = AnomalyDetector()
+        self.feature_extractor = FeatureExtractor()
 
-    def evaluate(self, signature_result, anomaly_result):
+    def detect(self, flow_data):
 
-        signature_score = signature_result.get("signature_score", 0)
-        anomaly_flag = anomaly_result.get("is_anomaly", False)
+        # 🔥 DO NOT destroy flow_data
+        safe_flow = flow_data
 
-        anomaly_score = 50 if anomaly_flag else 0
+        # 🔥 Ensure required fields exist
+        safe_flow.setdefault("unique_ports", 0)
+        safe_flow.setdefault("packet_count", 0)
+        safe_flow.setdefault("protocol", 0)
 
-        hybrid_score = (
-            self.signature_weight * signature_score +
-            self.anomaly_weight * anomaly_score
-        )
+        # 🔹 Signature detection (USES FLOW DATA)
+        signature_result = self.signature_detector.detect(safe_flow)
 
-        threat_level = self.calculate_threat_level(hybrid_score)
+        # 🔹 Feature extraction (FOR ML ONLY)
+        features = self.feature_extractor.extract(safe_flow)
 
-        result = {
-            "signature_score": signature_score,
-            "anomaly_detected": anomaly_flag,
-            "hybrid_score": hybrid_score,
-            "threat_level": threat_level,
-            "alerts": signature_result.get("alerts", [])
+        if not isinstance(features, dict):
+            features = {}
+
+        # 🔹 ML anomaly detection
+        anomaly_flag = self.anomaly_detector.predict(features)
+
+        return {
+            "signature_score": signature_result.get("signature_score", 0),
+            "matched_rules": signature_result.get("matched_rules", []),
+            "anomaly_detected": anomaly_flag
         }
-
-        return result
-
-    def calculate_threat_level(self, score):
-
-        if score >= 70:
-            return "CRITICAL"
-
-        elif score >= 40:
-            return "HIGH"
-
-        elif score >= 20:
-            return "MEDIUM"
-
-        else:
-            return "LOW"

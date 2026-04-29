@@ -6,27 +6,42 @@ class EventGenerator:
     def __init__(self):
         pass
 
+    def safe(self, value):
+        if value is None:
+            return 0
+        return value
+
     def generate_event(self, hybrid_result, risk_result, features):
 
         event = {
-            "timestamp": str(datetime.now()),
-            "source_ip": features.get("src_ip"),
-            "packet_count": features.get("packet_count"),
-            "unique_ports": features.get("unique_ports"),
-            "protocol": features.get("protocol"),
+            # 🔥 proper ISO timestamp
+            "timestamp": datetime.now().isoformat(),
 
-            "signature_score": hybrid_result.get("signature_score"),
-            "anomaly_detected": hybrid_result.get("anomaly_detected"),
+            # 🔥 safe feature extraction
+            "source_ip": features.get("src_ip") or "unknown",
+            "packet_count": self.safe(features.get("packet_count")),
+            "unique_ports": self.safe(features.get("unique_ports")),
+            "protocol": features.get("protocol") or 0,
 
-            "risk_score": risk_result.get("risk_score"),
-            "threat_level": risk_result.get("threat_level"),
+            # 🔥 hybrid results
+            "signature_score": self.safe(hybrid_result.get("signature_score")),
+            "anomaly_detected": bool(hybrid_result.get("anomaly_detected")),
 
-            "temporal_attack_density": risk_result.get("temporal_attack_density"),
-            "behavioral_drift": risk_result.get("behavioral_drift"),
+            # 🔥 risk results
+            "risk_score": self.safe(risk_result.get("risk_score")),
+            "threat_level": risk_result.get("threat_level") or "LOW",
 
-            "alerts": hybrid_result.get("alerts"),
+            "temporal_attack_density": self.safe(
+                risk_result.get("temporal_attack_density")
+            ),
+            "behavioral_drift": self.safe(
+                risk_result.get("behavioral_drift")
+            ),
 
-            "response_action": None
+            # 🔥 always list
+            "alerts": hybrid_result.get("alerts") or [],
+
+            "response_action": risk_result.get("response_action") or "None"
         }
 
         return event

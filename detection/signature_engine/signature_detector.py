@@ -1,13 +1,22 @@
 class SignatureDetector:
 
     def __init__(self):
-        # Improved thresholds (less aggressive)
         self.port_scan_threshold = 20
         self.packet_rate_threshold = 50
         self.packet_count_threshold = 500
 
-        # Trusted/common ports (normal traffic)
         self.trusted_ports = [80, 443]
+
+    def safe(self, value):
+        """Convert safely to number"""
+        if value is None:
+            return 0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return int(value)
+        except:
+            return 0
 
     def detect(self, features):
 
@@ -15,9 +24,12 @@ class SignatureDetector:
         severity_score = 0
 
         src_ip = features.get("src_ip")
-        unique_ports = features.get("unique_ports")
-        packet_rate = features.get("packet_rate")
-        packet_count = features.get("packet_count")
+
+        # 🔥 SAFE VALUES (CRITICAL FIX)
+        unique_ports = self.safe(features.get("unique_ports"))
+        packet_rate = self.safe(features.get("packet_rate"))
+        packet_count = self.safe(features.get("packet_count"))
+
         protocol = features.get("protocol")
 
         # ------------------------------
@@ -41,7 +53,7 @@ class SignatureDetector:
             severity_score += 40
 
         # ------------------------------
-        # 🚨 Rule 2: Traffic Flood (Improved)
+        # 🚨 Rule 2: Traffic Flood
         # ------------------------------
         if packet_rate > self.packet_rate_threshold and unique_ports > 3:
             alerts.append({

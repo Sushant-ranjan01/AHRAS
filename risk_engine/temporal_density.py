@@ -7,14 +7,25 @@ WINDOW_SIZE = 60  # seconds
 
 
 def calculate_density(source_ip):
+
+    # 🔥 input safety
+    if not isinstance(source_ip, str) or not source_ip:
+        return 0
+
     now = datetime.now().timestamp()
 
     traffic_window[source_ip].append(now)
 
-    # Remove old timestamps
+    # keep only recent timestamps
     traffic_window[source_ip] = [
         t for t in traffic_window[source_ip]
         if now - t <= WINDOW_SIZE
     ]
 
-    return len(traffic_window[source_ip])
+    density = len(traffic_window[source_ip])
+
+    # 🔥 cleanup empty keys
+    if not traffic_window[source_ip]:
+        del traffic_window[source_ip]
+
+    return density

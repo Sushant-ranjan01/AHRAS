@@ -16,31 +16,55 @@ class RiskEngine:
         self.packet_history = defaultdict(list)
         self.packet_timestamps = defaultdict(list)
 
-        self.window_size = 30   # ✅ increased window
+        self.window_size = 30
         self.max_history = 20
 
-    def normalize(self, value, max_value):
-        return min(value / max_value, 1)
+    # -------------------------
+    # 🔥 SAFE NUMERIC HANDLING
+    # -------------------------
+    def safe_num(self, value):
+        if value is None:
+            return 0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return float(value)
+        except:
+            return 0
 
+    def normalize(self, value, max_value):
+        value = self.safe_num(value)
+        return min(value / max_value, 1) if max_value else 0
+
+    # -------------------------
+    # 🔥 PACKET RATE
+    # -------------------------
     def calculate_packet_rate(self, src_ip):
 
         current_time = time.time()
 
         self.packet_timestamps[src_ip].append(current_time)
 
-        # keep only last N seconds
+        # keep only recent timestamps
         self.packet_timestamps[src_ip] = [
             t for t in self.packet_timestamps[src_ip]
             if current_time - t <= self.window_size
         ]
 
         rate = len(self.packet_timestamps[src_ip])
+        rate = self.safe_num(rate)
 
-        # 🔍 DEBUG (you can remove later)
         print(f"[DEBUG] {src_ip} → packet_rate: {rate}")
+
+        # 🔥 cleanup empty keys
+        if not self.packet_timestamps[src_ip]:
+            del self.packet_timestamps[src_ip]
 
         return rate
 
+    # -------------------------
+    # 🔥 TEMPORAL ATTACK DENSITY
+    # -------------------------
     def calculate_temporal_attack_density(self, src_ip):
 
         current_time = time.time()
@@ -50,12 +74,22 @@ class RiskEngine:
             if current_time - t <= 60
         ]
 
-        return len(self.attack_history[src_ip])
+        density = len(self.attack_history[src_ip])
 
+        # 🔥 cleanup empty keys
+        if not self.attack_history[src_ip]:
+            del self.attack_history[src_ip]
+
+        return self.safe_num(density)
+
+    # -------------------------
+    # 🔥 BEHAVIORAL DRIFT
+    # -------------------------
     def calculate_behavioral_drift(self, src_ip, packet_count):
 
-        history = self.packet_history[src_ip]
+        packet_count = self.safe_num(packet_count)
 
+        history = self.packet_history[src_ip]
         history.append(packet_count)
 
         if len(history) > self.max_history:
@@ -67,15 +101,18 @@ class RiskEngine:
         avg = sum(history[:-1]) / (len(history) - 1)
         drift = abs(packet_count - avg)
 
-        return drift
+        return self.safe_num(drift)
 
+    # -------------------------
+    # 🔥 MAIN RISK FUNCTION
+    # -------------------------
     def calculate_risk(self, hybrid_result, features):
 
-        src_ip = features.get("src_ip")
-        packet_count = features.get("packet_count", 0)
+        src_ip = features.get("src_ip") or "unknown"
+        packet_count = self.safe_num(features.get("packet_count"))
 
-        # 🚫 Ignore local traffic
-        if src_ip.startswith(("192.", "10.", "172.")):
+        # 🔥 Ignore local traffic
+        if isinstance(src_ip, str) and src_ip.startswith(("192.", "10.", "172.")):
             return {
                 "source_ip": src_ip,
                 "domain": "local",
@@ -88,25 +125,10 @@ class RiskEngine:
                 "response_action": "Ignored (Local Traffic)"
             }
 
-        # 🔥 Packet rate
         packet_rate = self.calculate_packet_rate(src_ip)
 
-        # 🚫 Only ignore VERY low traffic (fixed)
-        if packet_rate < 2:
-            return {
-                "source_ip": src_ip,
-                "domain": "normal",
-                "risk_score": 5,
-                "threat_level": "LOW",
-                "temporal_attack_density": 0,
-                "behavioral_drift": 0,
-                "packet_rate": packet_rate,
-                "trust_score": 1,
-                "response_action": "Monitored"
-            }
-
-        signature_score = hybrid_result.get("signature_score", 0)
-        anomaly_flag = hybrid_result.get("anomaly_detected", False)
+        signature_score = self.safe_num(hybrid_result.get("signature_score"))
+        anomaly_flag = bool(hybrid_result.get("anomaly_detected"))
 
         anomaly_score = 1 if anomaly_flag else 0
 
@@ -128,7 +150,9 @@ class RiskEngine:
             self.delta * (B + R)
         ) * 100
 
-        # 🔥 Multi-signal validation
+        # -------------------------
+        # 🔥 SIGNAL STRENGTH
+        # -------------------------
         signal_strength = 0
 
         if signature_score > 30:
@@ -147,15 +171,30 @@ class RiskEngine:
         elif signal_strength == 2:
             risk_score *= 0.7
 
-        # 🔥 Trust layer
-        trust_score, domain = calculate_trust_score(src_ip)
+        # -------------------------
+        # 🔥 TRUST ENGINE SAFE
+        # -------------------------
+        try:
+            result = calculate_trust_score(src_ip)
+
+            if not result or not isinstance(result, (list, tuple)) or len(result) != 2:
+                trust_score, domain = 0, "unknown"
+            else:
+                trust_score, domain = result
+
+        except Exception:
+            trust_score, domain = 0, "unknown"
+
+        trust_score = self.safe_num(trust_score)
 
         if trust_score > 0.5 and signal_strength < 3:
             risk_score *= 0.3
 
+        # 🔥 FINAL CLAMP
+        risk_score = min(self.safe_num(risk_score), 100)
+
         threat_level = self.get_threat_level(risk_score)
 
-        # 🔥 Simulation mode (NO REAL BLOCK)
         if risk_score >= 90 and signal_strength >= 3:
             response_action = f"Would Block (Simulation): {src_ip}"
         else:
@@ -173,7 +212,12 @@ class RiskEngine:
             "response_action": response_action
         }
 
+    # -------------------------
+    # 🔥 THREAT LEVEL
+    # -------------------------
     def get_threat_level(self, score):
+
+        score = self.safe_num(score)
 
         if score >= 90:
             return "CRITICAL"

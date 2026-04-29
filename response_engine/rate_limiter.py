@@ -11,6 +11,10 @@ class RateLimiter:
 
     def is_rate_limited(self, ip):
 
+        # 🔥 basic safety
+        if not isinstance(ip, str) or not ip:
+            return False
+
         current_time = time.time()
 
         self.request_log[ip].append(current_time)
@@ -20,6 +24,10 @@ class RateLimiter:
             t for t in self.request_log[ip]
             if current_time - t <= self.window
         ]
+
+        # 🔥 auto cleanup (optional but good)
+        if not self.request_log[ip]:
+            del self.request_log[ip]
 
         if len(self.request_log[ip]) > self.threshold:
             print(f"Rate limit exceeded for {ip}")

@@ -8,7 +8,11 @@ class AttackTrends:
         self.mongo_client = mongo_client
 
     def is_private_ip(self, ip):
-        return ip.startswith("10.") or ip.startswith("192.168") or ip.startswith("127.")
+        return isinstance(ip, str) and (
+            ip.startswith("10.") or
+            ip.startswith("192.168") or
+            ip.startswith("127.")
+        )
 
     def analyze(self):
 
@@ -35,15 +39,19 @@ class AttackTrends:
             ip_counter[ip] += 1
 
             alerts = event.get("alerts", [])
+
             for alert in alerts:
-                attack_type_counter[alert.get("type")] += 1
+                if isinstance(alert, dict):
+                    attack_type_counter[alert.get("type", "unknown")] += 1
 
             timestamp = event.get("timestamp")
-            try:
-                hour = datetime.fromisoformat(timestamp).hour
-                hourly_distribution[hour] += 1
-            except:
-                pass
+
+            if isinstance(timestamp, str):
+                try:
+                    hour = datetime.fromisoformat(timestamp).hour
+                    hourly_distribution[hour] += 1
+                except:
+                    pass
 
         return {
             "unique_attackers": len(ip_counter),

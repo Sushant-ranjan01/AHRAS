@@ -19,57 +19,72 @@ class TrafficListener:
 
         self.db = MongoDBClient()
 
-        # 🔥 Connected components
         self.alert_system = AlertSystem()
         self.rate_limiter = RateLimiter()
 
+    def safe_num(self, value):
+        if value is None:
+            return 0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return int(value)
+        except:
+            return 0
+
     def handle_packet(self, packet):
 
-        # STEP 1 → Flow generation
         flow_data = self.flow_generator.process_packet(packet)
 
         if not flow_data:
             return
 
-        src_ip = flow_data.get("source_ip")
+        # 🔥 SAFE FLOW (DO NOT TOUCH IPs)
+        safe_flow = {
+            "source_ip": flow_data.get("source_ip") or "unknown",
+            "destination_ip": flow_data.get("destination_ip") or "unknown",
 
-        # STEP 2 → Rate limiting (monitor only)
+            "packet_count": self.safe_num(flow_data.get("packet_count")),
+            "protocol": self.safe_num(flow_data.get("protocol")),
+            "src_port": self.safe_num(flow_data.get("src_port")),
+            "dst_port": self.safe_num(flow_data.get("dst_port")),
+            "unique_ports": self.safe_num(flow_data.get("unique_ports")),
+        }
+
+        src_ip = safe_flow["source_ip"]
+
+        # 🔥 Rate limit check
         if self.rate_limiter.is_rate_limited(src_ip):
             print(f"[RATE LIMIT] High traffic from {src_ip}")
 
-        # STEP 3 → Detection
-        hybrid_result = self.detector.detect(flow_data)
+        # Detection
+        hybrid_result = self.detector.detect(safe_flow)
 
-        # STEP 4 → Risk calculation
+        # Risk
         risk_result = self.risk_engine.calculate_risk(
             hybrid_result,
             {
                 "src_ip": src_ip,
-                "packet_count": flow_data.get("packet_count", 0)
+                "packet_count": safe_flow.get("packet_count", 0)
             }
         )
 
-        # STEP 5 → Structured event
         final_event = EventSchema.create(
-            flow_data,
+            safe_flow,
             hybrid_result,
             risk_result
         )
 
-        # STEP 6 → Print (debug)
         print("\n=== SECURITY EVENT ===")
         print(final_event)
 
-        # STEP 7 → Store in DB
         try:
             self.db.insert_event(final_event)
             print("✔ Stored in MongoDB")
         except Exception as e:
             print("❌ DB Error:", e)
 
-        # STEP 8 → Alerting (ONLY HIGH / CRITICAL)
-        if risk_result.get("threat_level") in ["HIGH", "CRITICAL"]:
+        if (risk_result.get("threat_level") or "") in ["HIGH", "CRITICAL"]:
             self.alert_system.generate_alert(risk_result)
 
-        # STEP 9 → Cleanup
         self.flow_generator.cleanup_flows()

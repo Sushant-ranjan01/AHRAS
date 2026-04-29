@@ -1,26 +1,40 @@
 import socket
-from functools import lru_cache
-
-TRUSTED_KEYWORDS = [
-    "google", "github", "cloudflare",
-    "microsoft", "amazon", "akamai"
-]
-
-@lru_cache(maxsize=1000)
-def resolve_domain(ip):
-    try:
-        return socket.gethostbyaddr(ip)[0].lower()
-    except:
-        return "unknown"
 
 
 def calculate_trust_score(ip):
-    domain = resolve_domain(ip)
+    """
+    Returns:
+        (trust_score, domain)
+    """
 
-    score = 0
+    # 🔥 basic validation
+    if not isinstance(ip, str) or not ip:
+        return 0.1, "unknown"
 
-    for keyword in TRUSTED_KEYWORDS:
-        if keyword in domain:
-            score += 0.4
+    try:
+        hostname = socket.gethostbyaddr(ip)[0]
+        hostname_lower = hostname.lower()
 
-    return min(score, 1), domain
+        trusted_domains = [
+            "google",
+            "amazonaws",
+            "cloudflare",
+            "microsoft",
+            "facebook",
+            "akamai",
+            "fastly"
+        ]
+
+        for domain in trusted_domains:
+            if domain in hostname_lower:
+                return 0.8, domain
+
+        return 0.4, hostname
+
+    except socket.herror:
+        # No reverse DNS
+        return 0.1, "unknown"
+
+    except Exception:
+        # Any unexpected failure
+        return 0.1, "unknown"
