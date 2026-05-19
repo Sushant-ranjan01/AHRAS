@@ -33,7 +33,14 @@ class HybridDetector:
         anomaly_flag = self.anomaly_detector.predict(features)
 
         return {
-            "signature_score": signature_result.get("signature_score", 0),
-            "matched_rules": signature_result.get("matched_rules", []),
-            "anomaly_detected": anomaly_flag
-        }
+    "signature_score": signature_result.get("signature_score", 0),
+
+    "alerts": signature_result.get("alerts", []),
+
+    "matched_rules": [
+        alert.get("type")
+        for alert in signature_result.get("alerts", [])
+    ],
+
+    "anomaly_detected": anomaly_flag
+}

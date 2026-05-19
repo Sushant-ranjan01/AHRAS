@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>AHRAS SOC</title>
+
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+    <!-- TOP BAR -->
+
+    <div class="topbar">
+
+        <div>
+
+            <h1>AHRAS Security Operations Center</h1>
+
+            <p>
+                {{ hostname }} |
+                {{ local_ip }} |
+                {{ os_info }}
+            </p>
+
+        </div>
+
+        <div class="status">
+            SYSTEM ACTIVE
+        </div>
+
+    </div>
+
+
+    <!-- MAIN GRID -->
+
+    <div class="grid">
+
+        <!-- LEFT PANEL -->
+
+        <div class="panel">
+
+            <h2>Session Metrics</h2>
+
+            <div class="metrics">
+
+                <div class="card">
+                    <h3 id="totalEvents">0</h3>
+                    <p>Total Events</p>
+                </div>
+
+                <div class="card">
+                    <h3 id="highAlerts">0</h3>
+                    <p>High Alerts</p>
+                </div>
+
+            </div>
+
+            <h2>Protocol Distribution</h2>
+
+            <canvas id="protocolChart"></canvas>
+
+        </div>
+
+
+        <!-- CENTER PANEL -->
+
+        <div class="panel">
+
+            <h2>Live Event Feed</h2>
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Time</th>
+
+                        <th>Source IP</th>
+
+                        <th>DNS / Organization</th>
+
+                        <th>Country</th>
+
+                        <th>Protocol</th>
+
+                        <th>Attack Type</th>
+
+                        <th>Risk</th>
+
+                        <th>Threat</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="eventTable">
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- RIGHT PANEL -->
+
+        <div class="panel">
+
+            <h2>Live Security Logs</h2>
+
+            <div id="liveLogs"></div>
+
+        </div>
+
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+
+</body>
+
+</html>
