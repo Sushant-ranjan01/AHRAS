@@ -10,3 +10,5 @@ seaborn
 python-dotenv
 joblib
 requests
+xgboost
+pyarrow fastparquet

@@ -12,6 +12,10 @@ from response_engine.alert_system import AlertSystem
 
 from response_engine.rate_limiter import RateLimiter
 
+from ml_engine.predict import predict_attack
+
+from live_logs import add_log
+
 
 class TrafficListener:
 
@@ -81,6 +85,57 @@ class TrafficListener:
             "unique_ports":
                 self.safe_num(
                     flow_data.get("unique_ports")
+                ),
+
+            "flow_duration":
+                self.safe_num(
+                    flow_data.get("flow_duration")
+                ),
+
+            "flow_packets_per_second":
+                self.safe_num(
+                    flow_data.get(
+                        "flow_packets_per_second"
+                    )
+                ),
+
+            "total_bytes":
+                self.safe_num(
+                    flow_data.get("total_bytes")
+                ),
+
+            "avg_packet_size":
+                self.safe_num(
+                    flow_data.get(
+                        "avg_packet_size"
+                    )
+                ),
+
+            "syn_count":
+                self.safe_num(
+                    flow_data.get("syn_count")
+                ),
+
+            "ack_count":
+                self.safe_num(
+                    flow_data.get("ack_count")
+                ),
+
+            "rst_count":
+                self.safe_num(
+                    flow_data.get("rst_count")
+                ),
+
+            "fin_count":
+                self.safe_num(
+                    flow_data.get("fin_count")
+                ),
+
+            "forward_packets":
+                self.safe_num(
+                    flow_data.get(
+                        "forward_packets"
+                    )
                 )
         }
 
@@ -94,13 +149,25 @@ class TrafficListener:
                 f"[RATE LIMIT] High traffic from {src_ip}"
             )
 
-        # DETECTION
+        # AI PREDICTION
+
+        ml_result = predict_attack(safe_flow)
+
+        safe_flow["ml_prediction"] = (
+            ml_result.get("attack_type")
+        )
+
+        # RULE/HYBRID DETECTION
 
         hybrid_result = self.detector.detect(
             safe_flow
         )
 
-        # RISK
+        hybrid_result["ml_prediction"] = (
+            ml_result.get("attack_type")
+        )
+
+        # RISK ENGINE
 
         risk_result = self.risk_engine.calculate_risk(
 
@@ -128,7 +195,7 @@ class TrafficListener:
             risk_result
         )
 
-        # ATTACK LABEL
+        # LOGGING
 
         attack_types = final_event.get(
             "matched_rules",
@@ -136,12 +203,14 @@ class TrafficListener:
         )
 
         if attack_types:
-            attack_label = ", ".join(attack_types)
+
+            attack_label = ", ".join(
+                attack_types
+            )
 
         else:
-            attack_label = "Normal"
 
-        # PROTOCOL LABEL
+            attack_label = "Normal"
 
         protocol = final_event.get(
             "protocol",
@@ -149,18 +218,20 @@ class TrafficListener:
         )
 
         if protocol == 6:
+
             proto_name = "TCP"
 
         elif protocol == 17:
+
             proto_name = "UDP"
 
         elif protocol == 1:
+
             proto_name = "ICMP"
 
         else:
-            proto_name = "OTHER"
 
-        # LIVE LOG MESSAGE
+            proto_name = "OTHER"
 
         log_message = (
 
@@ -172,32 +243,16 @@ class TrafficListener:
 
             f"| Risk={final_event.get('risk_score')} "
 
+            f"| ML={ml_result.get('attack_type')} "
+
             f"| {attack_label}"
         )
 
         print(log_message)
 
-        # SAVE LOG TO FILE
+        add_log(log_message)
 
-        try:
-
-            with open(
-                "logs/security_logs.txt",
-                "a"
-            ) as f:
-
-                f.write(
-                    log_message + "\n"
-                )
-
-        except Exception as e:
-
-            print(
-                "Log file error:",
-                e
-            )
-
-        # STORE DB
+        # DATABASE STORAGE
 
         try:
 
@@ -209,15 +264,21 @@ class TrafficListener:
 
             print("DB Error:", e)
 
-        # ALERT
+        # ALERTS
 
         if (
-            risk_result.get("threat_level")
+
+            risk_result.get(
+                "threat_level"
+            )
+
             in ["HIGH", "CRITICAL"]
         ):
 
             self.alert_system.generate_alert(
                 risk_result
             )
+
+        # CLEANUP
 
         self.flow_generator.cleanup_flows()
