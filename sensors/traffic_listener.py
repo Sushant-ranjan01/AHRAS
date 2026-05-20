@@ -29,9 +29,6 @@ class TrafficListener:
 
         self.rate_limiter = RateLimiter()
 
-    # --------------------------------
-    # SAFE NUMBER CONVERSION
-    # --------------------------------
     def safe_num(self, value):
 
         if value is None:
@@ -46,9 +43,6 @@ class TrafficListener:
         except:
             return 0
 
-    # --------------------------------
-    # MAIN PACKET HANDLER
-    # --------------------------------
     def handle_packet(self, packet):
 
         flow_data = self.flow_generator.process_packet(packet)
@@ -56,7 +50,6 @@ class TrafficListener:
         if not flow_data:
             return
 
-        # SAFE FLOW
         safe_flow = {
 
             "source_ip":
@@ -66,38 +59,49 @@ class TrafficListener:
                 flow_data.get("destination_ip") or "unknown",
 
             "packet_count":
-                self.safe_num(flow_data.get("packet_count")),
+                self.safe_num(
+                    flow_data.get("packet_count")
+                ),
 
             "protocol":
-                self.safe_num(flow_data.get("protocol")),
+                self.safe_num(
+                    flow_data.get("protocol")
+                ),
 
             "src_port":
-                self.safe_num(flow_data.get("src_port")),
+                self.safe_num(
+                    flow_data.get("src_port")
+                ),
 
             "dst_port":
-                self.safe_num(flow_data.get("dst_port")),
+                self.safe_num(
+                    flow_data.get("dst_port")
+                ),
 
             "unique_ports":
-                self.safe_num(flow_data.get("unique_ports")),
+                self.safe_num(
+                    flow_data.get("unique_ports")
+                )
         }
 
         src_ip = safe_flow["source_ip"]
 
-        # --------------------------------
-        # RATE LIMIT CHECK
-        # --------------------------------
+        # RATE LIMIT
+
         if self.rate_limiter.is_rate_limited(src_ip):
 
-            print(f"[RATE LIMIT] {src_ip}")
+            print(
+                f"[RATE LIMIT] High traffic from {src_ip}"
+            )
 
-        # --------------------------------
         # DETECTION
-        # --------------------------------
-        hybrid_result = self.detector.detect(safe_flow)
 
-        # --------------------------------
-        # RISK ENGINE
-        # --------------------------------
+        hybrid_result = self.detector.detect(
+            safe_flow
+        )
+
+        # RISK
+
         risk_result = self.risk_engine.calculate_risk(
 
             hybrid_result,
@@ -106,13 +110,15 @@ class TrafficListener:
                 "src_ip": src_ip,
 
                 "packet_count":
-                    safe_flow.get("packet_count", 0)
+                    safe_flow.get(
+                        "packet_count",
+                        0
+                    )
             }
         )
 
-        # --------------------------------
-        # EVENT CREATION
-        # --------------------------------
+        # FINAL EVENT
+
         final_event = EventSchema.create(
 
             safe_flow,
@@ -122,19 +128,77 @@ class TrafficListener:
             risk_result
         )
 
-        # --------------------------------
-        # TERMINAL OUTPUT
-        # --------------------------------
-        print(
-            f"[{final_event.get('threat_level')}] "
-            f"{final_event.get('source_ip')} "
-            f"PROTO={final_event.get('protocol')} "
-            f"RISK={final_event.get('risk_score')}"
+        # ATTACK LABEL
+
+        attack_types = final_event.get(
+            "matched_rules",
+            []
         )
 
-        # --------------------------------
-        # DATABASE STORAGE
-        # --------------------------------
+        if attack_types:
+            attack_label = ", ".join(attack_types)
+
+        else:
+            attack_label = "Normal"
+
+        # PROTOCOL LABEL
+
+        protocol = final_event.get(
+            "protocol",
+            0
+        )
+
+        if protocol == 6:
+            proto_name = "TCP"
+
+        elif protocol == 17:
+            proto_name = "UDP"
+
+        elif protocol == 1:
+            proto_name = "ICMP"
+
+        else:
+            proto_name = "OTHER"
+
+        # LIVE LOG MESSAGE
+
+        log_message = (
+
+            f"[{final_event.get('threat_level')}] "
+
+            f"{final_event.get('source_ip')} "
+
+            f"| {proto_name} "
+
+            f"| Risk={final_event.get('risk_score')} "
+
+            f"| {attack_label}"
+        )
+
+        print(log_message)
+
+        # SAVE LOG TO FILE
+
+        try:
+
+            with open(
+                "logs/security_logs.txt",
+                "a"
+            ) as f:
+
+                f.write(
+                    log_message + "\n"
+                )
+
+        except Exception as e:
+
+            print(
+                "Log file error:",
+                e
+            )
+
+        # STORE DB
+
         try:
 
             self.db.insert_event(final_event)
@@ -145,18 +209,15 @@ class TrafficListener:
 
             print("DB Error:", e)
 
-        # --------------------------------
-        # ALERTING
-        # --------------------------------
-        if final_event.get("threat_level") in [
+        # ALERT
 
-            "HIGH",
-            "CRITICAL"
-        ]:
+        if (
+            risk_result.get("threat_level")
+            in ["HIGH", "CRITICAL"]
+        ):
 
-            self.alert_system.generate_alert(final_event)
+            self.alert_system.generate_alert(
+                risk_result
+            )
 
-        # --------------------------------
-        # CLEANUP
-        # --------------------------------
         self.flow_generator.cleanup_flows()

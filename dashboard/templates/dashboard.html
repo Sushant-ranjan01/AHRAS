@@ -13,7 +13,7 @@
 
 <body>
 
-    <!-- TOP BAR -->
+    <!-- TOPBAR -->
 
     <div class="topbar">
 
@@ -36,40 +36,68 @@
     </div>
 
 
-    <!-- MAIN GRID -->
+    <!-- TOP METRICS -->
 
-    <div class="grid">
+    <div class="top-metrics">
 
-        <!-- LEFT PANEL -->
+        <div class="metric-card">
 
-        <div class="panel">
+            <h3 id="totalEvents">0</h3>
 
-            <h2>Session Metrics</h2>
-
-            <div class="metrics">
-
-                <div class="card">
-                    <h3 id="totalEvents">0</h3>
-                    <p>Total Events</p>
-                </div>
-
-                <div class="card">
-                    <h3 id="highAlerts">0</h3>
-                    <p>High Alerts</p>
-                </div>
-
-            </div>
-
-            <h2>Protocol Distribution</h2>
-
-            <canvas id="protocolChart"></canvas>
+            <p>Total Events</p>
 
         </div>
 
+        <div class="metric-card">
 
-        <!-- CENTER PANEL -->
+            <h3 id="highAlerts">0</h3>
 
-        <div class="panel">
+            <p>High Alerts</p>
+
+        </div>
+
+        <div class="metric-card low-bg">
+
+            <h3 id="lowCount">0</h3>
+
+            <p>LOW</p>
+
+        </div>
+
+        <div class="metric-card medium-bg">
+
+            <h3 id="mediumCount">0</h3>
+
+            <p>MEDIUM</p>
+
+        </div>
+
+        <div class="metric-card high-bg">
+
+            <h3 id="highCount">0</h3>
+
+            <p>HIGH</p>
+
+        </div>
+
+        <div class="metric-card critical-bg">
+
+            <h3 id="criticalCount">0</h3>
+
+            <p>CRITICAL</p>
+
+        </div>
+
+    </div>
+
+
+    <!-- MAIN GRID -->
+
+    <div class="main-grid">
+
+        <!-- EVENT TABLE -->
+
+        <div class="panel table-panel">
 
             <h2>Live Event Feed</h2>
 
@@ -79,21 +107,21 @@
 
                     <tr>
 
-                        <th>Time</th>
-
                         <th>Source IP</th>
 
                         <th>DNS / Organization</th>
 
-                        <th>Country</th>
-
-                        <th>Protocol</th>
+                        <th>Threat</th>
 
                         <th>Attack Type</th>
 
                         <th>Risk</th>
 
-                        <th>Threat</th>
+                        <th>Protocol</th>
+
+                        <th>Time</th>
+
+                        <th>Country</th>
 
                     </tr>
 
@@ -108,13 +136,50 @@
         </div>
 
 
-        <!-- RIGHT PANEL -->
+        <!-- LIVE LOGS -->
 
-        <div class="panel">
+        <div class="panel logs-panel">
 
             <h2>Live Security Logs</h2>
 
             <div id="liveLogs"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHARTS -->
+
+    <div class="charts-grid">
+
+        <div class="panel">
+
+            <h2>Protocol Distribution</h2>
+
+            <div class="chart-box">
+                <canvas id="protocolChart"></canvas>
+            </div>
+
+        </div>
+
+        <div class="panel">
+
+            <h2>Attack Analytics</h2>
+
+            <div class="chart-box">
+                <canvas id="attackChart"></canvas>
+            </div>
+
+        </div>
+
+        <div class="panel">
+
+            <h2>Risk Trend</h2>
+
+            <div class="chart-box">
+                <canvas id="riskChart"></canvas>
+            </div>
 
         </div>
 

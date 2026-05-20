@@ -10,9 +10,7 @@ body {
 }
 
 
-/* -------------------------------- */
-/* TOP BAR */
-/* -------------------------------- */
+/* TOPBAR */
 
 .topbar {
 
@@ -59,27 +57,103 @@ body {
 }
 
 
-/* -------------------------------- */
-/* GRID LAYOUT */
-/* -------------------------------- */
+/* TOP METRICS */
 
-.grid {
+.top-metrics {
 
     display: grid;
 
-    grid-template-columns: 320px 1fr 350px;
+    grid-template-columns: repeat(6, 1fr);
+
+    gap: 15px;
+
+    padding: 20px;
+}
+
+.metric-card {
+
+    background: #111827;
+
+    border: 1px solid #1e293b;
+
+    border-radius: 12px;
+
+    padding: 20px;
+
+    text-align: center;
+}
+
+.metric-card h3 {
+
+    margin: 0;
+
+    font-size: 32px;
+
+    color: #38bdf8;
+}
+
+.metric-card p {
+
+    margin-top: 10px;
+
+    font-weight: bold;
+}
+
+
+/* THREAT COLORS */
+
+.low-bg {
+
+    background: #14532d;
+}
+
+.medium-bg {
+
+    background: #78350f;
+}
+
+.high-bg {
+
+    background: #7f1d1d;
+}
+
+.critical-bg {
+
+    background: #450a0a;
+}
+
+
+/* MAIN GRID */
+
+.main-grid {
+
+    display: grid;
+
+    grid-template-columns: 1fr 420px;
 
     gap: 20px;
 
-    padding: 20px;
+    padding: 0 20px 20px 20px;
 
     align-items: start;
 }
 
 
-/* -------------------------------- */
+/* CHART GRID */
+
+.charts-grid {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr 1fr;
+
+    gap: 20px;
+
+    padding: 0 20px 20px 20px;
+}
+
+
 /* PANELS */
-/* -------------------------------- */
 
 .panel {
 
@@ -91,78 +165,35 @@ body {
 
     border: 1px solid #1e293b;
 
-    overflow: hidden;
+    overflow-x: auto;
 }
 
-.panel h2 {
 
-    margin-top: 0;
+/* TITLES */
+
+h2 {
+
+    color: #38bdf8;
 
     margin-bottom: 20px;
-
-    color: #38bdf8;
 }
 
 
-/* -------------------------------- */
-/* METRIC CARDS */
-/* -------------------------------- */
-
-.metrics {
-
-    display: flex;
-
-    gap: 15px;
-
-    margin-bottom: 30px;
-}
-
-.card {
-
-    flex: 1;
-
-    background: #1e293b;
-
-    padding: 20px;
-
-    border-radius: 10px;
-
-    text-align: center;
-}
-
-.card h3 {
-
-    margin: 0;
-
-    font-size: 30px;
-
-    color: #38bdf8;
-}
-
-.card p {
-
-    margin-top: 10px;
-
-    color: #94a3b8;
-}
-
-
-/* -------------------------------- */
 /* TABLE */
-/* -------------------------------- */
 
 table {
 
     width: 100%;
 
-    border-collapse: collapse;
+    min-width: 1000px;
 
-    font-size: 14px;
+    border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
 
-    padding: 12px;
+    padding: 14px;
 
     border-bottom: 1px solid #1e293b;
 
@@ -174,23 +205,10 @@ th, td {
 th {
 
     color: #94a3b8;
-
-    background: #0f172a;
-
-    position: sticky;
-
-    top: 0;
-}
-
-tbody tr:hover {
-
-    background: #1e293b;
 }
 
 
-/* -------------------------------- */
 /* THREAT COLORS */
-/* -------------------------------- */
 
 .low {
 
@@ -221,30 +239,41 @@ tbody tr:hover {
 }
 
 
-/* -------------------------------- */
-/* LIVE LOGS */
-/* -------------------------------- */
+/* LOGS */
+
+.logs-panel {
+
+    min-height: 800px;
+}
 
 #liveLogs {
 
-    max-height: 700px;
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+
+    max-height: 850px;
 
     overflow-y: auto;
+
+    padding-right: 5px;
 }
 
 .log-entry {
 
     background: #1e293b;
 
-    margin-bottom: 10px;
-
-    padding: 12px;
-
-    border-radius: 6px;
-
     border-left: 4px solid #38bdf8;
 
-    font-size: 13px;
+    padding: 14px;
+
+    border-radius: 8px;
+
+    font-size: 14px;
+
+    color: white;
 
     line-height: 1.5;
 
@@ -252,18 +281,32 @@ tbody tr:hover {
 }
 
 
-/* -------------------------------- */
+/* CHART FIX */
+
+.chart-box {
+
+    position: relative;
+
+    height: 320px;
+
+    width: 100%;
+}
+
+.chart-box canvas {
+
+    width: 100% !important;
+
+    height: 100% !important;
+}
+
+
 /* SCROLLBAR */
-/* -------------------------------- */
 
 ::-webkit-scrollbar {
 
     width: 8px;
-}
 
-::-webkit-scrollbar-track {
-
-    background: #111827;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -273,7 +316,23 @@ tbody tr:hover {
     border-radius: 10px;
 }
 
-::-webkit-scrollbar-thumb:hover {
 
-    background: #475569;
+/* RESPONSIVE */
+
+@media screen and (max-width: 1400px) {
+
+    .top-metrics {
+
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .main-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+    .charts-grid {
+
+        grid-template-columns: 1fr;
+    }
 }
