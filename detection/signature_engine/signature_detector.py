@@ -2,13 +2,13 @@ class SignatureDetector:
 
     def __init__(self):
 
-        self.port_scan_threshold = 8
+        self.port_scan_threshold = 5
 
-        self.packet_rate_threshold = 200
+        self.syn_scan_threshold = 10
 
-        self.packet_count_threshold = 300
+        self.packet_rate_threshold = 25
 
-        self.syn_flood_threshold = 100
+        self.packet_count_threshold = 200
 
     def safe(self, value):
 
@@ -35,14 +35,20 @@ class SignatureDetector:
             "unknown"
         )
 
+        protocol = self.safe(
+            features.get("protocol")
+        )
+
+        dst_port = self.safe(
+            features.get("dst_port")
+        )
+
         unique_ports = self.safe(
             features.get("unique_ports")
         )
 
         packet_rate = self.safe(
-            features.get(
-                "flow_packets_per_second"
-            )
+            features.get("packet_rate")
         )
 
         packet_count = self.safe(
@@ -57,17 +63,42 @@ class SignatureDetector:
             features.get("ack_count")
         )
 
-        protocol = self.safe(
-            features.get("protocol")
-        )
+        print("\n====== SIGNATURE DEBUG ======")
 
-        # ------------------------------
-        # PORT SCAN DETECTION
-        # ------------------------------
+        print("IP:", src_ip)
+
+        print("Ports:", unique_ports)
+
+        print("Packet Rate:", packet_rate)
+
+        print("Packets:", packet_count)
+
+        print("SYN:", syn_count)
+
+        print("ACK:", ack_count)
+
+        print("=============================\n")
+
+        # IGNORE DNS
+
+        if protocol == 17 and dst_port == 53:
+
+            return {
+
+                "alerts": [],
+
+                "signature_score": 0
+            }
+
+        # PORT SCAN
 
         if (
-            protocol == 6
-            and unique_ports >= self.port_scan_threshold
+
+            unique_ports >=
+            self.port_scan_threshold
+
+            and syn_count >=
+            self.syn_scan_threshold
         ):
 
             alerts.append({
@@ -77,80 +108,88 @@ class SignatureDetector:
                 "source_ip": src_ip,
 
                 "description":
-                    "Multiple ports scanned"
-            })
-
-            severity_score += 50
-
-        # ------------------------------
-        # SYN FLOOD DETECTION
-        # ------------------------------
-
-        if (
-
-            syn_count > self.syn_flood_threshold
-
-            and ack_count < (
-                syn_count * 0.2
-            )
-        ):
-
-            alerts.append({
-
-                "type": "SYN_FLOOD",
-
-                "source_ip": src_ip,
-
-                "description":
-                    "Large SYN flood behavior"
+                    "Nmap-style scan detected"
             })
 
             severity_score += 70
 
-        # ------------------------------
-        # TRAFFIC FLOOD
-        # ------------------------------
+        # SYN SCAN
 
         if (
 
-            packet_rate > self.packet_rate_threshold
+            syn_count >
+            (ack_count * 2)
 
-            and packet_count > 100
+            and syn_count > 10
         ):
 
             alerts.append({
 
-                "type": "TRAFFIC_FLOOD",
+                "type": "SYN_SCAN",
 
                 "source_ip": src_ip,
 
                 "description":
-                    "High traffic burst detected"
+                    "Suspicious SYN-heavy traffic"
             })
 
-            severity_score += 40
+            severity_score += 50
 
-        # ------------------------------
-        # HIGH PACKET VOLUME
-        # ------------------------------
+        # HIGH PORT DIVERSITY
 
-        if packet_count > self.packet_count_threshold:
+        if unique_ports > 15:
 
             alerts.append({
 
-                "type": "HIGH_TRAFFIC_SOURCE",
+                "type":
+                    "HIGH_PORT_DIVERSITY",
 
                 "source_ip": src_ip,
 
                 "description":
-                    "Large packet volume detected"
+                    "Many destination ports"
+            })
+
+            severity_score += 50
+
+        # PACKET BURST
+
+        if packet_rate > 25:
+
+            alerts.append({
+
+                "type":
+                    "PACKET_BURST",
+
+                "source_ip": src_ip,
+
+                "description":
+                    "Burst traffic detected"
             })
 
             severity_score += 30
+
+        # TRAFFIC FLOOD
+
+        if packet_count > 200:
+
+            alerts.append({
+
+                "type":
+                    "TRAFFIC_FLOOD",
+
+                "source_ip": src_ip,
+
+                "description":
+                    "Very high traffic volume"
+            })
+
+            severity_score += 40
 
         return {
 
             "alerts": alerts,
 
-            "signature_score": severity_score
+            "signature_score":
+                severity_score
         }

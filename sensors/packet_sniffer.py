@@ -31,7 +31,9 @@ def process_packet(packet):
 
     try:
 
+        # ----------------------------
         # ONLY IP PACKETS
+        # ----------------------------
 
         if not packet.haslayer(IP):
 
@@ -51,9 +53,15 @@ def process_packet(packet):
 
         flags = ""
 
-        # TCP PACKETS
+        protocol_name = "OTHER"
+
+        # ----------------------------
+        # TCP
+        # ----------------------------
 
         if packet.haslayer(TCP):
+
+            protocol_name = "TCP"
 
             tcp = packet.getlayer(TCP)
 
@@ -63,15 +71,42 @@ def process_packet(packet):
 
             flags = str(tcp.flags)
 
-        # UDP PACKETS
+        # ----------------------------
+        # UDP
+        # ----------------------------
 
         elif packet.haslayer(UDP):
+
+            protocol_name = "UDP"
 
             udp = packet.getlayer(UDP)
 
             src_port = safe_int(udp.sport)
 
             dst_port = safe_int(udp.dport)
+
+        # ----------------------------
+        # RAW DEBUG OUTPUT
+        # ----------------------------
+
+        print(
+
+            f"[RAW] "
+
+            f"{src_ip} -> {dst_ip} | "
+
+            f"{protocol_name} | "
+
+            f"SPORT={src_port} | "
+
+            f"DPORT={dst_port} | "
+
+            f"FLAGS={flags}"
+        )
+
+        # ----------------------------
+        # RETURN PACKET
+        # ----------------------------
 
         return {
 
@@ -103,7 +138,7 @@ def process_packet(packet):
     except Exception as e:
 
         print(
-            "Packet processing error:",
+            "\nPACKET PROCESSING ERROR:",
             e
         )
 
@@ -125,7 +160,7 @@ def safe_handler(packet):
     except Exception:
 
         print(
-            "\nFULL TRACEBACK (REAL ERROR)\n"
+            "\nFULL TRACEBACK\n"
         )
 
         traceback.print_exc()
@@ -144,7 +179,6 @@ def start_sniffing():
     sniff(
 
         iface="Intel(R) Wi-Fi 6 AX201 160MHz",
-
 
         prn=safe_handler,
 
