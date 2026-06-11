@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sushant Ranjan — Cybersecurity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05080f;
+  --bg2:#090d18;
+  --bg3:#0d1220;
+  --card:#0f1525;
+  --border:#1a2540;
+  --border2:#243050;
+  --green:#00e5a0;
+  --green2:#00b87a;
+  --cyan:#00c8e8;
+  --text:#e2e8f0;
+  --muted:#6b7fa3;
+  --muted2:#8897b8;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+  line-height:1.6;
+}
+
+/* CANVAS */
+#matrix-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:0.035;pointer-events:none}
+
+/* LAYOUT */
+.container{max-width:1100px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:16px 0;
+  border-bottom:1px solid transparent;
+  transition:all 0.3s;
+}
+nav.scrolled{
+  background:rgba(5,8,15,0.92);
+  backdrop-filter:blur(16px);
+  border-bottom-color:var(--border);
+}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;max-width:1100px;margin:0 auto;padding:0 24px}
+.nav-logo{
+  font-family:'JetBrains Mono',monospace;
+  font-size:15px;
+  color:var(--green);
+  text-decoration:none;
+}
+.nav-logo span{color:var(--muted)}
+.nav-links{display:flex;gap:28px;list-style:none}
+.nav-links a{
+  font-size:13px;
+  color:var(--muted);
+  text-decoration:none;
+  font-family:'JetBrains Mono',monospace;
+  transition:color 0.2s;
+  letter-spacing:0.05em;
+}
+.nav-links a:hover{color:var(--green)}
+
+/* HERO */
+#hero{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  padding:100px 0 60px;
+  position:relative;
+}
+.hero-grid{
+  display:grid;
+  grid-template-columns:1fr 420px;
+  gap:60px;
+  align-items:center;
+}
+.hero-eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  color:var(--green);
+  letter-spacing:0.12em;
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.hero-eyebrow::before{content:'';width:32px;height:1px;background:var(--green)}
+h1.hero-name{
+  font-size:clamp(42px,5vw,68px);
+  font-weight:700;
+  line-height:1.05;
+  letter-spacing:-0.02em;
+  margin-bottom:12px;
+}
+h1.hero-name .accent{color:var(--green)}
+.hero-role{
+  font-family:'JetBrains Mono',monospace;
+  font-size:18px;
+  color:var(--cyan);
+  margin-bottom:24px;
+  min-height:28px;
+}
+.hero-desc{
+  font-size:16px;
+  color:var(--muted2);
+  line-height:1.8;
+  max-width:480px;
+  margin-bottom:36px;
+}
+.hero-btns{display:flex;gap:14px;flex-wrap:wrap}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 24px;
+  background:var(--green);
+  color:#05080f;
+  font-weight:600;font-size:14px;
+  border-radius:8px;
+  text-decoration:none;
+  transition:all 0.2s;
+  border:none;cursor:pointer;
+}
+.btn-primary:hover{background:var(--green2);transform:translateY(-2px)}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 24px;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  border:1px solid var(--border2);
+  border-radius:8px;
+  text-decoration:none;
+  transition:all 0.2s;
+  cursor:pointer;
+}
+.btn-secondary:hover{border-color:var(--cyan);color:var(--cyan);transform:translateY(-2px)}
+
+/* TERMINAL CARD */
+.terminal{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 0 60px rgba(0,229,160,0.06);
+}
+.terminal-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;
+  background:rgba(255,255,255,0.03);
+  border-bottom:1px solid var(--border);
+}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot-red{background:#ff5f57}
+.dot-yellow{background:#febc2e}
+.dot-green{background:#28c840}
+.terminal-title{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-left:auto;margin-right:auto}
+.terminal-body{padding:20px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.9}
+.t-prompt{color:var(--green)}
+.t-cmd{color:var(--text)}
+.t-out{color:var(--muted2)}
+.t-key{color:var(--cyan)}
+.t-val{color:#c3d6ff}
+.t-tag{color:#f7a8d4}
+.t-cursor{
+  display:inline-block;width:8px;height:14px;
+  background:var(--green);
+  animation:blink 1s step-end infinite;
+  vertical-align:-2px;
+  margin-left:2px;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* SECTION */
+section{padding:100px 0}
+.section-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--green);
+  letter-spacing:0.15em;
+  margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;
+}
+.section-label::before{content:'';width:24px;height:1px;background:var(--green)}
+h2.section-title{
+  font-size:clamp(28px,3vw,40px);
+  font-weight:700;
+  letter-spacing:-0.02em;
+  margin-bottom:48px;
+  line-height:1.2;
+}
+h2.section-title span{color:var(--green)}
+
+/* ABOUT GRID */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.about-text p{font-size:16px;color:var(--muted2);line-height:1.85;margin-bottom:16px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.stat-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:18px;
+  transition:border-color 0.2s;
+}
+.stat-card:hover{border-color:var(--green)}
+.stat-num{font-size:28px;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace;line-height:1}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* SKILLS */
+.skills-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.skill-group{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;transition:border-color 0.2s,transform 0.2s}
+.skill-group:hover{border-color:var(--border2);transform:translateY(-3px)}
+.skill-group-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;color:var(--green);
+  letter-spacing:0.1em;margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.skill-group-title svg{width:14px;height:14px;flex-shrink:0}
+.skill-tags{display:flex;flex-wrap:wrap;gap:8px}
+.skill-tag{
+  font-size:12px;
+  font-family:'JetBrains Mono',monospace;
+  padding:5px 12px;
+  background:rgba(0,229,160,0.06);
+  color:var(--muted2);
+  border:1px solid rgba(0,229,160,0.12);
+  border-radius:6px;
+  transition:all 0.2s;
+}
+.skill-tag:hover{background:rgba(0,229,160,0.12);color:var(--green);border-color:rgba(0,229,160,0.3)}
+
+/* EXPERIENCE */
+.exp-timeline{position:relative;padding-left:32px}
+.exp-timeline::before{
+  content:'';
+  position:absolute;left:0;top:8px;bottom:0;
+  width:1px;background:var(--border);
+}
+.exp-item{
+  position:relative;
+  margin-bottom:48px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:28px;
+  transition:border-color 0.2s;
+}
+.exp-item:hover{border-color:var(--border2)}
+.exp-dot{
+  position:absolute;left:-40px;top:30px;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 4px rgba(0,229,160,0.15);
+}
+.exp-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+.exp-company{font-size:12px;color:var(--green);font-family:'JetBrains Mono',monospace;letter-spacing:0.08em;margin-bottom:4px}
+.exp-role{font-size:18px;font-weight:600}
+.exp-date{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;color:var(--muted);
+  background:rgba(0,229,160,0.06);
+  border:1px solid rgba(0,229,160,0.12);
+  padding:4px 12px;border-radius:20px;
+  white-space:nowrap;
+}
+.exp-list{list-style:none;margin-top:16px}
+.exp-list li{
+  font-size:14px;color:var(--muted2);
+  padding:6px 0 6px 20px;
+  position:relative;
+  line-height:1.6;
+}
+.exp-list li::before{
+  content:'▸';
+  position:absolute;left:0;
+  color:var(--green);
+}
+
+/* PROJECTS */
+.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.project-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:28px;
+  transition:all 0.3s;
+  position:relative;
+  overflow:hidden;
+}
+.project-card::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--green),var(--cyan));
+  opacity:0;
+  transition:opacity 0.3s;
+}
+.project-card:hover{border-color:var(--border2);transform:translateY(-4px);box-shadow:0 20px 40px rgba(0,0,0,0.4)}
+.project-card:hover::before{opacity:1}
+.project-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.project-icon{
+  width:44px;height:44px;border-radius:10px;
+  background:rgba(0,229,160,0.08);
+  border:1px solid rgba(0,229,160,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+}
+.project-links{display:flex;gap:10px}
+.project-links a{color:var(--muted);text-decoration:none;font-size:13px;transition:color 0.2s}
+.project-links a:hover{color:var(--green)}
+.project-title{font-size:17px;font-weight:600;margin-bottom:8px}
+.project-badge{
+  display:inline-block;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:0.1em;
+  padding:3px 10px;
+  background:rgba(0,229,160,0.1);
+  color:var(--green);
+  border:1px solid rgba(0,229,160,0.2);
+  border-radius:4px;
+  margin-bottom:10px;
+}
+.project-desc{font-size:14px;color:var(--muted2);line-height:1.7;margin-bottom:18px}
+.project-tech{display:flex;flex-wrap:wrap;gap:6px}
+.tech-chip{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  padding:3px 10px;
+  background:rgba(0,200,232,0.07);
+  color:var(--cyan);
+  border:1px solid rgba(0,200,232,0.15);
+  border-radius:5px;
+}
+
+/* CERTIFICATIONS */
+.cert-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.cert-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:20px;
+  display:flex;align-items:flex-start;gap:14px;
+  transition:all 0.2s;
+}
+.cert-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.cert-issuer-badge{
+  width:42px;height:42px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:18px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);
+}
+.cert-info{flex:1;min-width:0}
+.cert-name{font-size:14px;font-weight:500;line-height:1.4;margin-bottom:4px}
+.cert-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cert-issuer{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.cert-date{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.cert-verify{font-size:11px;color:var(--cyan);text-decoration:none;transition:color 0.2s}
+.cert-verify:hover{color:var(--green)}
+.cert-progress{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11px;color:var(--green);
+  font-family:'JetBrains Mono',monospace;
+}
+.progress-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
+
+/* CONTACT */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.contact-info p{font-size:16px;color:var(--muted2);line-height:1.8;margin-bottom:28px}
+.contact-links{display:flex;flex-direction:column;gap:12px}
+.contact-link{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  text-decoration:none;
+  color:var(--text);
+  transition:all 0.2s;
+}
+.contact-link:hover{border-color:var(--green);transform:translateX(4px)}
+.contact-link-icon{
+  width:36px;height:36px;border-radius:8px;
+  background:rgba(0,229,160,0.08);
+  border:1px solid rgba(0,229,160,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.contact-link-label{font-size:13px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.contact-link-val{font-size:14px;font-weight:500}
+.contact-form{display:flex;flex-direction:column;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.08em}
+.form-input{
+  padding:12px 16px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:14px;
+  outline:none;
+  transition:border-color 0.2s;
+}
+.form-input:focus{border-color:var(--green)}
+.form-input::placeholder{color:var(--muted)}
+textarea.form-input{resize:vertical;min-height:120px}
+
+/* FOOTER */
+footer{
+  border-top:1px solid var(--border);
+  padding:32px 0;
+  text-align:center;
+}
+.footer-text{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
+.footer-text span{color:var(--green)}
+
+/* DIVIDER */
+.section-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0}
+
+/* SCROLL REVEAL */
+.reveal{opacity:0;transform:translateY(24px);transition:all 0.6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* MOBILE */
+@media(max-width:768px){
+  .hero-grid{grid-template-columns:1fr}
+  .about-grid,.contact-grid{grid-template-columns:1fr}
+  .terminal{display:none}
+  .nav-links{display:none}
+  h1.hero-name{font-size:36px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="matrix-canvas"></canvas>
+
+<nav id="navbar">
+  <div class="nav-inner">
+    <a href="#hero" class="nav-logo">SR<span>@sec</span></a>
+    <ul class="nav-links">
+      <li><a href="#about">about</a></li>
+      <li><a href="#skills">skills</a></li>
+      <li><a href="#experience">experience</a></li>
+      <li><a href="#projects">projects</a></li>
+      <li><a href="#certifications">certifications</a></li>
+      <li><a href="#contact">contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <p class="hero-eyebrow">Cybersecurity &amp; CS Engineering</p>
+        <h1 class="hero-name">Sushant<br/><span class="accent">Ranjan</span></h1>
+        <div class="hero-role" id="typing-text"></div>
+        <p class="hero-desc">Computer Science student at Acharya Institute of Technology with hands-on experience in ethical hacking, network security, and threat detection systems.</p>
+        <div class="hero-btns">
+          <a href="https://github.com/Sushant-ranjan01" target="_blank" class="btn-primary">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            GitHub
+          </a>
+          <a href="https://www.linkedin.com/in/sushant-ranjan-7726a0289/" target="_blank" class="btn-secondary">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+        </div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+          <span class="terminal-title">terminal — bash</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="t-prompt">┌──(</span><span class="t-tag">sushant</span><span class="t-prompt">㉿kali)-[~]</span></div>
+          <div><span class="t-prompt">└─$ </span><span class="t-cmd">whoami --verbose</span></div>
+          <br/>
+          <div><span class="t-key">name</span><span class="t-out">        : </span><span class="t-val">Sushant Ranjan</span></div>
+          <div><span class="t-key">role</span><span class="t-out">        : </span><span class="t-val">CS Student + Sec Intern</span></div>
+          <div><span class="t-key">location</span><span class="t-out">    : </span><span class="t-val">Bengaluru, India</span></div>
+          <div><span class="t-key">focus</span><span class="t-out">       : </span><span class="t-val">Ethical Hacking</span></div>
+          <br/>
+          <div><span class="t-prompt">└─$ </span><span class="t-cmd">cat tools.txt</span></div>
+          <br/>
+          <div><span class="t-out">[+] Nmap, Nuclei, theHarvester</span></div>
+          <div><span class="t-out">[+] Burp Suite, SQLMap, Metasploit</span></div>
+          <div><span class="t-out">[+] Hashcat, Impacket, Wapiti</span></div>
+          <div><span class="t-out">[+] Kali Linux, VirtualBox, VMware</span></div>
+          <br/>
+          <div><span class="t-prompt">└─$ </span><span class="t-cmd">./scan --target self</span></div>
+          <br/>
+          <div><span class="t-out">[✓] Vulnerability assessment: </span><span class="t-val">active</span></div>
+          <div><span class="t-out">[✓] Google Cybersecurity: </span><span class="t-val">in-progress</span></div>
+          <div><span class="t-out">[✓] AHRAS project: </span><span class="t-val">building...</span></div>
+          <br/>
+          <div><span class="t-prompt">└─$ </span><span class="t-cursor"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">01 / about</p>
+      <h2 class="section-title">Building the <span>next layer</span> of defence</h2>
+    </div>
+    <div class="about-grid">
+      <div class="about-text reveal">
+        <p>I'm a Computer Science and Engineering student at Acharya Institute of Technology (2023–2027), currently exploring the deep end of cybersecurity — from network reconnaissance and vulnerability assessment to building my own automated threat detection system.</p>
+        <p>Most recently I interned at Uptoskills where I performed real-world ethical hacking methodology: reconnaissance, Nmap &amp; Nuclei scanning, web vulnerability analysis, and basic penetration testing in isolated lab environments.</p>
+        <p>Outside security, I enjoy building things — whether it's an AI-powered video summarizer or a computer vision object counter. I believe understanding how systems work is what makes you good at breaking (and protecting) them.</p>
+      </div>
+      <div class="stat-grid reveal">
+        <div class="stat-card">
+          <div class="stat-num">15+</div>
+          <div class="stat-label">Certifications earned</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">4+</div>
+          <div class="stat-label">Projects built</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">5 mo</div>
+          <div class="stat-label">Security internship</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">2027</div>
+          <div class="stat-label">Expected graduation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- SKILLS -->
+<section id="skills">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">02 / skills</p>
+      <h2 class="section-title">Tools of the <span>trade</span></h2>
+    </div>
+    <div class="skills-wrap reveal">
+      <div class="skill-group">
+        <div class="skill-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          SECURITY TOOLS
+        </div>
+        <div class="skill-tags">
+          <span class="skill-tag">Nmap</span>
+          <span class="skill-tag">Nuclei</span>
+          <span class="skill-tag">Burp Suite</span>
+          <span class="skill-tag">SQLMap</span>
+          <span class="skill-tag">Metasploit</span>
+          <span class="skill-tag">Hashcat</span>
+          <span class="skill-tag">Impacket</span>
+          <span class="skill-tag">theHarvester</span>
+          <span class="skill-tag">Wapiti</span>
+          <span class="skill-tag">Netcat</span>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          PROGRAMMING
+        </div>
+        <div class="skill-tags">
+          <span class="skill-tag">Python</span>
+          <span class="skill-tag">C</span>
+          <span class="skill-tag">C++</span>
+          <span class="skill-tag">Pandas</span>
+          <span class="skill-tag">NumPy</span>
+          <span class="skill-tag">Scikit-learn</span>
+          <span class="skill-tag">OpenCV</span>
+          <span class="skill-tag">NLP</span>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          SYSTEMS &amp; OS
+        </div>
+        <div class="skill-tags">
+          <span class="skill-tag">Kali Linux</span>
+          <span class="skill-tag">Ubuntu</span>
+          <span class="skill-tag">VirtualBox</span>
+          <span class="skill-tag">VMware</span>
+          <span class="skill-tag">Git</span>
+          <span class="skill-tag">GitHub</span>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          NETWORKING
+        </div>
+        <div class="skill-tags">
+          <span class="skill-tag">TCP/IP</span>
+          <span class="skill-tag">DNS</span>
+          <span class="skill-tag">HTTP/HTTPS</span>
+          <span class="skill-tag">Recon</span>
+          <span class="skill-tag">Enumeration</span>
+          <span class="skill-tag">Vuln Assessment</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- EXPERIENCE -->
+<section id="experience">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">03 / experience</p>
+      <h2 class="section-title">Where I've <span>applied</span> it</h2>
+    </div>
+    <div class="exp-timeline">
+      <div class="exp-item reveal">
+        <div class="exp-dot"></div>
+        <div class="exp-header">
+          <div>
+            <div class="exp-company">UPTOSKILLS</div>
+            <div class="exp-role">Cybersecurity Intern</div>
+          </div>
+          <div class="exp-date">Dec 2025 – Apr 2026</div>
+        </div>
+        <ul class="exp-list">
+          <li>Performed full-cycle reconnaissance, scanning, and vulnerability assessment following real-world ethical hacking methodology</li>
+          <li>Conducted network enumeration using Nmap and Nuclei to identify open ports, services, and potential security weaknesses</li>
+          <li>Analyzed common web vulnerabilities (OWASP Top 10) and practised basic penetration testing techniques in isolated lab environments</li>
+          <li>Produced structured security reports documenting findings and recommended mitigations</li>
+        </ul>
+      </div>
+      <div class="exp-item reveal">
+        <div class="exp-dot"></div>
+        <div class="exp-header">
+          <div>
+            <div class="exp-company">MANTHAN 2025</div>
+            <div class="exp-role">Project Team Lead — EcoCycle Solutions</div>
+          </div>
+          <div class="exp-date">2025</div>
+        </div>
+        <ul class="exp-list">
+          <li>Led cross-functional team developing an IoT-enabled smart waste management startup concept</li>
+          <li>Coordinated task distribution, managed timelines, and drove project to finalist selection</li>
+          <li>Delivered final presentation to panel of judges, representing the team's technical and business vision</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">04 / projects</p>
+      <h2 class="section-title">Things I've <span>built</span></h2>
+    </div>
+    <div class="projects-grid">
+      <div class="project-card reveal">
+        <div class="project-top">
+          <div class="project-icon">🛡️</div>
+          <div class="project-links">
+            <a href="https://github.com/Sushant-ranjan01" target="_blank" title="GitHub">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="project-badge">ONGOING</div>
+        <div class="project-title">AHRAS — Automated Threat Detection</div>
+        <div class="project-desc">Developing a system to monitor web traffic and detect anomalies indicating potential security threats. Applies machine learning to classify normal vs suspicious behaviour patterns.</div>
+        <div class="project-tech">
+          <span class="tech-chip">Python</span>
+          <span class="tech-chip">Pandas</span>
+          <span class="tech-chip">Scikit-learn</span>
+          <span class="tech-chip">NumPy</span>
+          <span class="tech-chip">ML</span>
+        </div>
+      </div>
+      <div class="project-card reveal">
+        <div class="project-top">
+          <div class="project-icon">🔍</div>
+          <div class="project-links">
+            <a href="https://github.com/Sushant-ranjan01" target="_blank" title="GitHub">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="project-title">Network Recon &amp; Security Testing</div>
+        <div class="project-desc">Performed systematic reconnaissance and scanning to identify domains, open ports, and running services. Conducted basic vulnerability testing and analysed potential attack surfaces in a lab setup.</div>
+        <div class="project-tech">
+          <span class="tech-chip">Nmap</span>
+          <span class="tech-chip">Nuclei</span>
+          <span class="tech-chip">theHarvester</span>
+          <span class="tech-chip">Kali Linux</span>
+        </div>
+      </div>
+      <div class="project-card reveal">
+        <div class="project-top">
+          <div class="project-icon">🎬</div>
+          <div class="project-links">
+            <a href="https://github.com/Sushant-ranjan01" target="_blank" title="GitHub">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="project-title">Video Summarizer &amp; Quiz Generator</div>
+        <div class="project-desc">Web application that automatically generates structured summaries and interactive quizzes from video content using NLP techniques.</div>
+        <div class="project-tech">
+          <span class="tech-chip">Python</span>
+          <span class="tech-chip">NLP</span>
+          <span class="tech-chip">Web App</span>
+          <span class="tech-chip">AI</span>
+        </div>
+      </div>
+      <div class="project-card reveal">
+        <div class="project-top">
+          <div class="project-icon">👁️</div>
+          <div class="project-links">
+            <a href="https://github.com/Sushant-ranjan01" target="_blank" title="GitHub">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="project-title">Real-Time Object Counting</div>
+        <div class="project-desc">Computer vision system for real-time object detection and counting using morphological image processing techniques. Built for performance and accuracy in dynamic scenes.</div>
+        <div class="project-tech">
+          <span class="tech-chip">OpenCV</span>
+          <span class="tech-chip">Python</span>
+          <span class="tech-chip">Morphology</span>
+          <span class="tech-chip">CV</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- CERTIFICATIONS -->
+<section id="certifications">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">05 / certifications</p>
+      <h2 class="section-title">Continuous <span>learning</span></h2>
+    </div>
+    <div class="cert-grid">
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🔵</div>
+        <div class="cert-info">
+          <div class="cert-name">Google Cybersecurity Professional Certificate</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Google / Coursera</span>
+            <span class="cert-progress"><span class="progress-dot"></span>in progress</span>
+          </div>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🔒</div>
+        <div class="cert-info">
+          <div class="cert-name">Assets, Threats, and Vulnerabilities</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Google / Coursera</span>
+            <span class="cert-date">Jun 2026</span>
+          </div>
+          <a href="https://coursera.org/verify/K425V9XO68L4" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🛡️</div>
+        <div class="cert-info">
+          <div class="cert-name">Web Security, Social Engineering &amp; External Attacks</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Packt / Coursera</span>
+            <span class="cert-date">May 2026</span>
+          </div>
+          <a href="https://coursera.org/verify/SL9WRR19CZ3L" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🌐</div>
+        <div class="cert-info">
+          <div class="cert-name">Computer Networks and Network Security</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">IBM / Coursera</span>
+            <span class="cert-date">Oct 2025</span>
+          </div>
+          <a href="https://coursera.org/verify/9H9149F1A8LS" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🔗</div>
+        <div class="cert-info">
+          <div class="cert-name">Connect and Protect: Networks and Network Security</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Google / Coursera</span>
+            <span class="cert-date">Oct 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/VSX63LLV8RFF" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">⚙️</div>
+        <div class="cert-info">
+          <div class="cert-name">Kali Linux</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Board Infinity / Coursera</span>
+            <span class="cert-date">Nov 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/VS0GO36ZBIIS" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🔐</div>
+        <div class="cert-info">
+          <div class="cert-name">Play It Safe: Manage Security Risks</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Google / Coursera</span>
+            <span class="cert-date">Sep 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/TGKHAG8402LJ" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🛡️</div>
+        <div class="cert-info">
+          <div class="cert-name">Foundations of Cybersecurity</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Google / Coursera</span>
+            <span class="cert-date">Sep 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/TJDJUWKOHVSL" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🐍</div>
+        <div class="cert-info">
+          <div class="cert-name">C++ Basics: Selection and Iteration</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Codio / Coursera</span>
+            <span class="cert-date">May 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/WFF4UPG7QWQV" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">🤖</div>
+        <div class="cert-info">
+          <div class="cert-name">Prompt Engineering for ChatGPT</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Vanderbilt / Coursera</span>
+            <span class="cert-date">Dec 2023</span>
+          </div>
+          <a href="https://coursera.org/verify/M9LM4AL58UQ7" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">☁️</div>
+        <div class="cert-info">
+          <div class="cert-name">Introduction to Vertex AI Studio</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Google Cloud / Coursera</span>
+            <span class="cert-date">Feb 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/UVAMDASQG43B" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+      <div class="cert-card reveal">
+        <div class="cert-issuer-badge">📊</div>
+        <div class="cert-info">
+          <div class="cert-name">Microsoft 365 Fundamentals Specialization</div>
+          <div class="cert-meta">
+            <span class="cert-issuer">Microsoft / Coursera</span>
+            <span class="cert-date">Apr 2024</span>
+          </div>
+          <a href="https://coursera.org/verify/specialization/T95UTVPHNJ42" target="_blank" class="cert-verify">verify ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label">06 / contact</p>
+      <h2 class="section-title">Let's <span>connect</span></h2>
+    </div>
+    <div class="contact-grid">
+      <div>
+        <p class="reveal" style="font-size:16px;color:var(--muted2);line-height:1.8;margin-bottom:28px">I'm always open to discussing cybersecurity, interesting projects, internship opportunities, or just geeking out about CTFs and ethical hacking. Drop me a message.</p>
+        <div class="contact-links">
+          <a href="mailto:ranjansushant001@gmail.com" class="contact-link reveal">
+            <div class="contact-link-icon">📧</div>
+            <div>
+              <div class="contact-link-label">email</div>
+              <div class="contact-link-val">ranjansushant001@gmail.com</div>
+            </div>
+          </a>
+          <a href="https://www.linkedin.com/in/sushant-ranjan-7726a0289/" target="_blank" class="contact-link reveal">
+            <div class="contact-link-icon">💼</div>
+            <div>
+              <div class="contact-link-label">linkedin</div>
+              <div class="contact-link-val">sushant-ranjan-7726a0289</div>
+            </div>
+          </a>
+          <a href="https://github.com/Sushant-ranjan01" target="_blank" class="contact-link reveal">
+            <div class="contact-link-icon">
+              <svg width="18" height="18" fill="var(--muted2)" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </div>
+            <div>
+              <div class="contact-link-label">github</div>
+              <div class="contact-link-val">Sushant-ranjan01</div>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="contact-form reveal">
+        <div class="form-group">
+          <label class="form-label">name</label>
+          <input type="text" class="form-input" placeholder="Your name"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">email</label>
+          <input type="email" class="form-input" placeholder="your@email.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">message</label>
+          <textarea class="form-input" placeholder="What's on your mind?"></textarea>
+        </div>
+        <button class="btn-primary" style="width:100%;justify-content:center" onclick="this.textContent='Message sent ✓';this.style.background='var(--green2)'">Send Message</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p class="footer-text">Designed &amp; built by <span>Sushant Ranjan</span> — Bengaluru, India · 2026</p>
+  </div>
+</footer>
+
+<script>
+/* MATRIX RAIN */
+const canvas=document.getElementById('matrix-canvas');
+const ctx=canvas.getContext('2d');
+let cols,drops;
+function initMatrix(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  cols=Math.floor(canvas.width/20);
+  drops=Array(cols).fill(1);
+}
+initMatrix();
+window.addEventListener('resize',initMatrix);
+const chars='アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF';
+setInterval(()=>{
+  ctx.fillStyle='rgba(5,8,15,0.05)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#00e5a0';
+  ctx.font='14px JetBrains Mono,monospace';
+  drops.forEach((y,i)=>{
+    const char=chars[Math.floor(Math.random()*chars.length)];
+    ctx.fillText(char,i*20,y*20);
+    if(y*20>canvas.height&&Math.random()>0.975)drops[i]=0;
+    drops[i]++;
+  });
+},60);
+
+/* TYPING ANIMATION */
+const roles=['Cybersecurity Enthusiast','Ethical Hacking Learner','Future Security Analyst','Network Recon Specialist','Building AHRAS...'];
+let ri=0,ci=0,deleting=false;
+const el=document.getElementById('typing-text');
+function type(){
+  const cur=roles[ri];
+  if(!deleting){
+    el.textContent=cur.slice(0,++ci);
+    if(ci===cur.length){deleting=true;setTimeout(type,1800);return}
+  }else{
+    el.textContent=cur.slice(0,--ci);
+    if(ci===0){deleting=false;ri=(ri+1)%roles.length}
+  }
+  setTimeout(type,deleting?60:90);
+}
+type();
+
+/* NAV SCROLL */
+window.addEventListener('scroll',()=>{
+  document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>50);
+});
+
+/* SCROLL REVEAL */
+const reveals=document.querySelectorAll('.reveal');
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}});
+},{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+reveals.forEach(r=>observer.observe(r));
+</script>
+</body>
+</html>
