@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # ── AHRAS Core ────────────────────────────────────────────
+  ahras:
+    build: .
+    container_name: ahras-core
+    restart: unless-stopped
+    network_mode: host          # Required for packet capture
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - AHRAS_HOST=0.0.0.0
+      - AHRAS_PORT=8000
+      - SECRET_KEY=${SECRET_KEY:-ahras-change-this-in-production}
+      - ABUSEIPDB_KEY=${ABUSEIPDB_KEY:-}
+      - VIRUSTOTAL_KEY=${VIRUSTOTAL_KEY:-}
+      - OTX_KEY=${OTX_KEY:-}
+      - HONEYPOT_SSH_PORT=2222
+      - HONEYPOT_FTP_PORT=2121
+      - HONEYPOT_HTTP_PORT=8081
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+      - "2222:2222"   # Honeypot SSH
+      - "2121:2121"   # Honeypot FTP
+      - "8081:8081"   # Honeypot HTTP
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Nginx reverse proxy (optional) ────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ahras-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - ahras
+    profiles:
+      - production
+
+volumes:
+  logs:
+  data:
