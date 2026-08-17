@@ -1,0 +1,48 @@
+name: AHRAS CI
+
+# Runs the existing pytest suite plus a static security lint (bandit) on
+# every push/PR so regressions and obviously risky code (shell=True,
+# hardcoded secrets, eval, etc) get caught before merge.
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --break-system-packages || pip install -r requirements.txt
+          pip install pytest pytest-cov bandit
+
+      - name: Run test suite (pytest.ini)
+        run: pytest -v --cov=. --cov-report=term-missing
+
+      - name: Security lint (bandit)
+        run: bandit -r . -x ./tests,./venv,./.venv -ll
+        continue-on-error: true   # surfaces findings without blocking merges yet
+
+      - name: Upload coverage report
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .coverage
