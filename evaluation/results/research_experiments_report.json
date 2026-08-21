@@ -1,0 +1,180 @@
+{
+  "generated_at": "2026-08-21 04:00:52 UTC",
+  "ablation_study": {
+    "threshold": 20.0,
+    "n_records": 15000,
+    "rows": {
+      "1_signature_only": {
+        "accuracy": 0.9648,
+        "precision": 1.0,
+        "recall": 0.8825,
+        "f1": 0.9376,
+        "fpr": 0.0,
+        "auc": 1.0,
+        "tp": 3966,
+        "fp": 0,
+        "tn": 10506,
+        "fn": 528
+      },
+      "2_ml_anomaly_only": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "auc": 1.0,
+        "tp": 4494,
+        "fp": 0,
+        "tn": 10506,
+        "fn": 0
+      },
+      "3_signature_plus_ml": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "auc": 1.0,
+        "tp": 4494,
+        "fp": 0,
+        "tn": 10506,
+        "fn": 0
+      },
+      "4_full_multisignal_fusion": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "auc": 1.0,
+        "tp": 4494,
+        "fp": 0,
+        "tn": 10506,
+        "fn": 0
+      },
+      "5_plus_rule_mitre_asset_trust": {
+        "accuracy": 0.9707,
+        "precision": 0.9147,
+        "recall": 0.9949,
+        "f1": 0.9531,
+        "fpr": 0.0397,
+        "auc": 0.9699,
+        "tp": 4471,
+        "fp": 417,
+        "tn": 10089,
+        "fn": 23
+      },
+      "6_full_pipeline_plus_history": {
+        "accuracy": 0.9707,
+        "precision": 0.9147,
+        "recall": 0.9949,
+        "f1": 0.9531,
+        "fpr": 0.0397,
+        "auc": 0.9699,
+        "tp": 4471,
+        "fp": 417,
+        "tn": 10089,
+        "fn": 23
+      }
+    }
+  },
+  "adaptive_learning": {
+    "threshold": 20.0,
+    "train_size": 10000,
+    "test_size": 10000,
+    "learned_weights": {
+      "signature": 0.2635,
+      "anomaly": 0.6366,
+      "density": 0.0499,
+      "drift_rate": 0.0499
+    },
+    "default_weights": {
+      "signature": 0.4,
+      "anomaly": 0.3,
+      "density": 0.2,
+      "drift_rate": 0.1
+    },
+    "rows": {
+      "fixed_weights (alpha/beta/gamma/delta = .40/.30/.20/.10)": {
+        "accuracy": 0.9684,
+        "precision": 0.9094,
+        "recall": 0.9922,
+        "f1": 0.949,
+        "fpr": 0.0416,
+        "auc": 0.9683,
+        "tp": 2941,
+        "fp": 293,
+        "tn": 6743,
+        "fn": 23
+      },
+      "adaptive_weights (learned on train split)": {
+        "accuracy": 0.9704,
+        "precision": 0.91,
+        "recall": 0.999,
+        "f1": 0.9524,
+        "fpr": 0.0416,
+        "auc": 0.9986,
+        "tp": 2961,
+        "fp": 293,
+        "tn": 6743,
+        "fn": 3
+      }
+    }
+  },
+  "correlation_fp_reduction": {
+    "n_campaigns": 60,
+    "n_noise_ips": 1000,
+    "threshold": 20.0,
+    "raw_per_event": {
+      "alerts": 1180,
+      "true_positives": 180,
+      "false_positives": 1000,
+      "precision": 0.1525
+    },
+    "correlation_confirmed": {
+      "alerts": 60,
+      "true_positives": 60,
+      "false_positives": 0,
+      "precision": 1.0
+    },
+    "false_positive_reduction_pct": 100.0
+  },
+  "historical_risk_before_after": {
+    "n_repeat_offenders": 40,
+    "visits_per_offender": 6,
+    "n_one_off": 600,
+    "threshold_high": 50.0,
+    "overall_with_history": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "fpr": 0.0,
+      "auc": 1.0,
+      "tp": 840,
+      "fp": 0,
+      "tn": 600,
+      "fn": 0
+    },
+    "overall_without_history": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "fpr": 0.0,
+      "auc": 1.0,
+      "tp": 840,
+      "fp": 0,
+      "tn": 600,
+      "fn": 0
+    },
+    "repeat_offender_recall_at_high": {
+      "with_history": 0.6667,
+      "without_history": 0.0
+    },
+    "one_off_recall_at_high_control": {
+      "with_history": 0.0,
+      "without_history": 0.0
+    }
+  }
+}
