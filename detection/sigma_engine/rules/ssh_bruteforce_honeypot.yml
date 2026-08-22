@@ -1,0 +1,18 @@
+title: SSH Credential Brute-Force via Honeypot Interaction
+id: ahras_bundled_ssh_bruteforce
+status: stable
+description: >
+  Flags repeated SSH login attempts against a decoy service — any hit is
+  guaranteed malicious since honeypots have no legitimate users.
+level: critical
+tags:
+  - attack.credential_access
+  - attack.t1110
+logsource:
+  category: authentication
+  product: honeypot
+detection:
+  selection:
+    service: "SSH"
+    event_type|contains: "login"
+  condition: selection

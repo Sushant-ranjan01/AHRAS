@@ -1,0 +1,24 @@
+title: Suspicious Remote Download and Execute
+id: ahras_bundled_download_execute
+status: stable
+description: >
+  Detects common "download a payload and run it" command patterns seen in
+  honeypot sessions and shell/command telemetry (curl|wget piped to sh,
+  certutil download, powershell -enc, etc).
+level: high
+tags:
+  - attack.execution
+  - attack.t1105
+logsource:
+  category: process_creation
+detection:
+  selection:
+    command|contains:
+      - "curl "
+      - "wget "
+      - "certutil -urlcache"
+      - "powershell -enc"
+      - "IEX(New-Object"
+      - "| sh"
+      - "| bash"
+  condition: selection
