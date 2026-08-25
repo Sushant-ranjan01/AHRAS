@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AHRAS SOC v2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0D1117;--surface:#161B22;--card:#1C2128;--border:#2D333B;
+  --text:#CDD9E5;--muted:#768390;--accent:#4A90D9;
+  --green:#3FB950;--yellow:#D29922;--orange:#E3671C;--red:#F85149;
+  --radius:8px;--font:'Segoe UI',system-ui,sans-serif;
+}
+/* Light theme — toggled by adding data-theme="light" to <html> (see
+   toggleTheme() near the bottom of this file). Same variable names, so
+   every existing rule below repaints automatically with no other changes. */
+html[data-theme="light"]{
+  --bg:#F6F8FA;--surface:#FFFFFF;--card:#FFFFFF;--border:#D0D7DE;
+  --text:#1F2328;--muted:#57606A;--accent:#0969DA;
+  --green:#1A7F37;--yellow:#9A6700;--orange:#BC4C00;--red:#CF222E;
+}
+html[data-theme="light"] .login-box,
+html[data-theme="light"] .card{box-shadow:0 1px 3px #1f232814}
+html[data-theme="light"] .b-LOW{background:#1a7f3718}
+html[data-theme="light"] .b-MEDIUM{background:#9a670018}
+html[data-theme="light"] .b-HIGH{background:#bc4c0018}
+html[data-theme="light"] .b-CRITICAL{background:#cf222e18}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;min-height:100vh}
+/* ── Login ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:48px 40px;width:380px;text-align:center}
+.login-logo{font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-0.5px;margin-bottom:4px}
+.login-sub{color:var(--muted);font-size:12px;margin-bottom:32px}
+.login-box input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:10px 14px;font-size:13px;margin-bottom:12px;outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.btn-login{width:100%;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn-login:hover{background:#5a9fde}
+.login-error{color:var(--red);font-size:12px;margin-top:10px;min-height:18px}
+/* ── App layout (left sidebar) ── */
+#app{display:none;min-height:100vh}
+/* Sidebar (was: top header bar) — fixed so it always spans the full viewport
+   height, independent of how tall the page content grows. Previously this
+   was `position:sticky` inside a flex row, which loses its stick once the
+   overflow-x:hidden on html/body clips the scrolling context: the sidebar
+   would render its own height then just end while the page kept scrolling
+   underneath it. Fixed positioning removes that ambiguity entirely. */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);width:216px;flex-shrink:0;display:flex;flex-direction:column;height:100vh;position:fixed;top:0;left:0;z-index:200;transition:transform .2s ease}
+.sidebar-brand{display:flex;align-items:center;gap:8px;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px #3fb95030;flex-shrink:0}
+.hdr-title{font-weight:800;font-size:15px;letter-spacing:-0.3px;line-height:1.3}
+.hdr-sub{color:var(--muted);font-size:10px;letter-spacing:.1em}
+.hdr-tabs{display:flex;flex-direction:column;gap:2px;padding:8px;overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.hdr-tabs::-webkit-scrollbar{width:4px}
+.hdr-tabs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.tab-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:9px 12px;text-align:left;border-radius:6px;border-left:3px solid transparent;transition:.15s;white-space:nowrap;width:100%}
+.tab-btn:hover{background:#ffffff08;color:var(--text)}
+.tab-btn.active{color:var(--text);font-weight:600;border-left-color:var(--accent);background:#4a90d918}
+.hdr-right{display:flex;flex-direction:column;gap:10px;align-items:stretch;flex-shrink:0;padding:14px 16px;border-top:1px solid var(--border)}
+.hdr-right .pill-btn{width:100%}
+/* Hamburger toggle + overlay, shown only on narrow screens */
+.mobile-menu-btn{display:none;position:fixed;top:12px;left:12px;z-index:300;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:6px;width:36px;height:36px;font-size:16px;cursor:pointer}
+.sidebar-overlay{display:none}
+@media (max-width:860px){
+  .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);box-shadow:0 0 40px #0009}
+  .sidebar.open{transform:translateX(0)}
+  .mobile-menu-btn{display:block}
+  .sidebar-overlay.show{display:block;position:fixed;inset:0;background:#0008;z-index:199}
+  .sysbar{padding-left:58px}
+  .content-col{margin-left:0}
+}
+/* Right-hand column that holds the sysbar + page content. Offset by the
+   fixed sidebar's width on desktop; full-width under the sidebar on mobile
+   (see media query above), where the sidebar slides over as an overlay. */
+.content-col{display:flex;flex-direction:column;min-height:100vh;margin-left:216px}
+.pill-btn{background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:600}
+.pill-btn.accent{background:#4a90d920;color:var(--accent);border-color:#4a90d950}
+.pill-btn.green{background:#3fb95020;color:var(--green);border-color:#3fb95050}
+.pill-btn.red{background:#f8514920;color:var(--red);border-color:#f8514950}
+.theme-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600}
+.theme-toggle:hover{color:var(--text);border-color:var(--accent)}
+/* Sysbar */
+.sysbar{background:var(--surface);border-bottom:1px solid var(--border);padding:5px 20px;display:flex;gap:24px;font-size:11px;align-items:center}
+.sysbar span.k{color:var(--muted)}
+.sysbar span.v{font-family:monospace;color:var(--text)}
+/* Main */
+.main{padding:18px 20px;flex:1}
+/* Panels */
+.panel{display:none}.panel.active{display:block}
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.card-title{color:var(--text);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;border-left:3px solid var(--accent);padding-left:9px;margin-bottom:14px}
+/* Grid helpers */
+.row{display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.row>.card{flex:1;min-width:120px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+/* Stat cards */
+.stat-val{font-size:30px;font-weight:800;line-height:1}
+.stat-sub{color:var(--muted);font-size:11px;margin-top:5px}
+/* Tables */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:7px 12px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+td{padding:7px 12px;border-bottom:1px solid #2d333b20;font-size:12px}
+tr:hover td{background:#ffffff05}
+/* Badges */
+.badge{border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700}
+.b-LOW{background:#3fb95022;color:var(--green)}
+.b-MEDIUM{background:#d2992222;color:var(--yellow)}
+.b-HIGH{background:#e3671c22;color:var(--orange)}
+.b-CRITICAL{background:#f8514922;color:var(--red)}
+.b-OPEN{background:#4a90d920;color:var(--accent)}
+.b-ACKNOWLEDGED{background:#3fb95020;color:var(--green)}
+.b-RESOLVED{background:#76839020;color:var(--muted)}
+.b-ESCALATED{background:#f8514920;color:var(--red)}
+/* Toggle switch */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:13px}
+.toggle-desc{font-size:11px;color:var(--muted);margin-top:2px}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#444c56;border-radius:24px;transition:.3s}
+.slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:var(--accent)}
+input:checked+.slider:before{transform:translateX(20px)}
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.form-group input,.form-group textarea,.form-group select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:9px 12px;font-size:13px;outline:none;font-family:var(--font)}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--accent)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{border:none;border-radius:6px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#5a9fde}
+.btn-danger{background:var(--red);color:#fff}
+.btn-success{background:var(--green);color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px}
+/* Popup */
+#popup-container{position:fixed;top:70px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:340px}
+.popup{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;pointer-events:all;animation:slideIn .25s ease;box-shadow:0 8px 24px #0008}
+.popup.critical{border-left:3px solid var(--red)}
+.popup.high{border-left:3px solid var(--orange)}
+.popup.medium{border-left:3px solid var(--yellow)}
+.popup-title{font-weight:700;font-size:13px;margin-bottom:4px}
+.popup-msg{font-size:12px;color:var(--muted);line-height:1.5}
+.popup-close{float:right;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;margin-top:-2px}
+.popup-actions{display:flex;gap:8px;margin-top:10px}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+/* Notif bell */
+.notif-bell{position:relative;cursor:pointer}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+/* Risk bar */
+.risk-bar-wrap{background:var(--border);border-radius:4px;height:6px;margin-top:4px}
+.risk-bar{height:100%;border-radius:4px;transition:width .4s}
+/* Scrollable log */
+.log-box{height:160px;overflow-y:auto;font-family:monospace;font-size:11px}
+.log-line{padding:2px 0;border-bottom:1px solid #ffffff08}
+/* Role badge */
+.role-master{background:#4a90d920;color:var(--accent);border:1px solid #4a90d940;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700}
+.role-analyst{background:#3fb95020;color:var(--green);border:1px solid #3fb95040;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700}
+/* Separator */
+.sep{height:1px;background:var(--border);margin:16px 0}
+canvas{max-height:200px}
+.chart-wrap{position:relative;height:200px}
+/* ── Narrative section dividers (dashboard restructure) ── */
+.section-divider{display:flex;align-items:center;gap:10px;margin:22px 0 12px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+/* ── Pill badges (severity, reputation) ── */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.pill-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+/* ── KPI cards with trend ── */
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;flex:1;min-width:130px;cursor:pointer;transition:border-color .15s}
+.kpi-card:hover{border-color:var(--accent)}
+.kpi-label{color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.kpi-val{font-size:26px;font-weight:800;line-height:1}
+.kpi-trend{font-size:11px;margin-top:6px}
+/* ── Risk mini bar (inline, next to a risk number) ── */
+.risk-mini-wrap{width:52px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:7px}
+.risk-mini-bar{height:100%;border-radius:3px;transition:width .4s}
+/* ── IP as primary object ── */
+.ip-cell{cursor:pointer}
+.ip-cell .ip-main{font-family:monospace;font-weight:700;color:var(--text)}
+.ip-cell:hover .ip-main{color:var(--accent);text-decoration:underline}
+.ip-cell .ip-org{color:var(--muted);font-size:10.5px;margin-top:1px}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0}
+/* ── Row action menu (⋮) instead of a Block button on every row ── */
+.action-menu-wrap{position:relative;display:inline-block}
+.action-menu-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;width:26px;height:24px;cursor:pointer;font-size:14px;line-height:1}
+.action-menu-btn:hover{color:var(--text);border-color:var(--accent)}
+.action-menu{position:absolute;right:0;top:28px;background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:160px;box-shadow:0 8px 24px #000a;z-index:80;overflow:hidden;display:none}
+.action-menu.show{display:block}
+.action-menu button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:9px 12px;font-size:12px;cursor:pointer}
+.action-menu button:hover{background:#ffffff0a}
+.action-menu button.danger{color:var(--red)}
+/* ── Widget lists (Top Threat Sources / Top Attack Types) ── */
+.mini-list-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #2d333b30;cursor:pointer}
+.mini-list-row:last-child{border-bottom:none}
+.mini-list-row:hover{background:#ffffff05}
+.mini-list-rank{color:var(--muted);font-size:11px;width:16px;display:inline-block}
+/* ── Overlay modal (IP Intelligence / Event Detail) — matches Case Detail styling ── */
+.ov-backdrop{position:fixed;inset:0;background:#000a;z-index:900;display:flex;align-items:center;justify-content:center;padding:20px}
+.ov-box{background:var(--card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:26px}
+.ai-analysis{background:#4a90d90d;border:1px solid #4a90d940;border-radius:8px;padding:14px;margin-top:14px;font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">AHRAS</div>
+    <div class="login-sub">Adaptive Hybrid Risk-Aware Security System</div>
+    <input type="text" id="login-user" placeholder="Username" value="admin"/>
+    <input type="password" id="login-pass" placeholder="Password" value="Admin@123"/>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-err"></div>
+    <div style="margin-top:20px;font-size:11px;color:var(--muted);line-height:1.8">
+      Master: admin / Admin@123<br>Analyst: analyst / Analyst@123
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app">
+  <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar: brand + module nav + user/actions -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="hdr-dot"></div>
+      <div><div class="hdr-title">AHRAS</div><div class="hdr-sub">SOC v2</div></div>
+    </div>
+    <div class="hdr-tabs" id="hdr-tabs"></div>
+    <div class="hdr-right">
+      <!-- Notification bell -->
+      <div class="notif-bell" onclick="openNotifications()" title="Notifications">
+        <svg width="20" height="20" fill="none" stroke="#768390" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-badge" id="notif-count" style="display:none">0</div>
+      </div>
+      <!-- Theme toggle -->
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light / dark mode">
+        <span id="theme-icon">🌙</span><span id="theme-label">Dark</span>
+      </button>
+      <span id="hdr-user" style="font-size:12px;color:var(--muted)"></span>
+      <span id="hdr-role"></span>
+      <button class="pill-btn accent" onclick="dlReport()">↓ Report</button>
+      <button class="pill-btn red" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Right column: sysbar + page content -->
+  <div class="content-col">
+    <div class="sysbar">
+      <span><span class="k">HOST </span><span class="v" id="sb-host">DESKTOP-G1S4QIB</span></span>
+      <span><span class="k">IP </span><span class="v">10.0.1.138</span></span>
+      <span><span class="k">ENGINE </span><span class="v">Hybrid IDS + ML + Ransomware + AV</span></span>
+      <span><span class="k">FIREWALL </span><span class="v" id="sb-fw">OFF (DRY-RUN)</span></span>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted)" id="sb-time"></span>
+    </div>
+
+    <div class="main" id="main-content">
+      <!-- panels injected here -->
+    </div>
+  </div>
+</div>
+
+<!-- Popup container -->
+<div id="popup-container"></div>
+
+<script>
+// ════════════════════════════════════════════════
+// THEME (dark / light) — applied immediately, before login, so the login
+// screen itself respects the saved preference too.
+// ════════════════════════════════════════════════
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  if (icon) icon.textContent = theme === 'light' ? '☀️' : '🌙';
+  if (label) label.textContent = theme === 'light' ? 'Light' : 'Dark';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  localStorage.setItem('ahras_theme', next);
+  applyTheme(next);
+}
+(function initTheme() {
+  const saved = localStorage.getItem('ahras_theme');
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(saved || (prefersLight ? 'light' : 'dark'));
+})();
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+const S = {
+  token: null, role: null, username: null,
+  events: [], stats: {severity_counts:{},attack_type_counts:{},protocol_counts:{},risk_trend:[]},
+  prevStats: null,
+  fwStatus: null, charts: {}, liveOn: true,
+};
+let _feedEvents = []; // events currently rendered in the live feed table, indexed for openEventModal(i)
+const API = (p) => `/api${p}`;
+const hdrs = () => ({ 'Content-Type':'application/json', 'Authorization': S.token ? `Bearer ${S.token}` : '' });
+
+async function apiFetch(path, opts={}) {
+  const res = await fetch(API(path), { headers: hdrs(), ...opts });
+  if (res.status === 401) { doLogout(); return null; }
+  if (!res.ok) { const e = await res.json().catch(()=>({detail:'Error'})); showPopup(e.detail||'Error','CRITICAL'); return null; }
+  return res.json();
+}
+
+// ════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════
+async function doLogin() {
+  const u = document.getElementById('login-user').value;
+  const p = document.getElementById('login-pass').value;
+  const form = new URLSearchParams(); form.append('username',u); form.append('password',p);
+  try {
+    const res = await fetch('/api/auth/login', { method:'POST', body: form });
+    if (res.status === 429) {
+      const e = await res.json().catch(()=>({detail:'Too many attempts — try again later.'}));
+      document.getElementById('login-err').textContent = e.detail;
+      return;
+    }
+    if (!res.ok) { document.getElementById('login-err').textContent='Invalid credentials'; return; }
+    const d = await res.json();
+    S.token = d.access_token; S.role = d.role; S.username = d.username;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+    if (d.must_change_password) showForcePasswordChangeModal();
+  } catch { document.getElementById('login-err').textContent = 'Connection error'; }
+}
+
+// ── Forced password change (seeded default accounts) ──────────────────────
+function showForcePasswordChangeModal() {
+  if (document.getElementById('force-pw-modal')) return;
+  const el = document.createElement('div');
+  el.className = 'ov-backdrop';
+  el.id = 'force-pw-modal';
+  el.innerHTML = `
+    <div class="ov-box" style="max-width:420px">
+      <h3 style="margin:0 0 6px">⚠️ Change Your Password</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 16px">
+        You're signed in with a default seeded account (<code>${S.username}</code>). These
+        credentials are public in the AHRAS documentation — set a real password before
+        doing anything else.
+      </p>
+      <input type="password" id="fpw-old" placeholder="Current password" style="width:100%;margin-bottom:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+      <input type="password" id="fpw-new" placeholder="New password (min 8 chars)" style="width:100%;margin-bottom:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+      <input type="password" id="fpw-confirm" placeholder="Confirm new password" style="width:100%;margin-bottom:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+      <div id="fpw-err" style="color:var(--red);font-size:12px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('force-pw-modal').remove()">Remind me later</button>
+        <button class="btn btn-sm btn-primary" onclick="submitPasswordChange()">Change Password</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+}
+async function submitPasswordChange() {
+  const oldP = document.getElementById('fpw-old').value;
+  const newP = document.getElementById('fpw-new').value;
+  const confP = document.getElementById('fpw-confirm').value;
+  const err = document.getElementById('fpw-err');
+  if (!oldP || !newP) { err.textContent = 'Fill in both fields.'; return; }
+  if (newP.length < 8) { err.textContent = 'New password must be at least 8 characters.'; return; }
+  if (newP !== confP) { err.textContent = "New password and confirmation don't match."; return; }
+  const res = await fetch('/api/auth/change-password', {
+    method:'POST', headers: hdrs(),
+    body: JSON.stringify({ old_password: oldP, new_password: newP }),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({detail:'Change failed'}));
+    err.textContent = e.detail || 'Change failed';
+    return;
+  }
+  document.getElementById('force-pw-modal').remove();
+  showPopup('Password changed. Use your new password next time you sign in.', 'LOW');
+}
+
+function doLogout() {
+  apiFetch('/auth/logout', {method:'POST'});
+  S.token = null; S.role = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+function initApp() {
+  document.getElementById('hdr-user').textContent = S.username;
+  document.getElementById('hdr-role').innerHTML = `<span class="role-${S.role}">${S.role.toUpperCase()}</span>`;
+  buildTabs();
+  loadDashboard();
+  setInterval(refreshData, 3000);
+  setInterval(refreshNotifications, 5000);
+  updateClock();
+  setInterval(updateClock, 1000);
+  checkCaptureStatus();
+  setInterval(checkCaptureStatus, 5000);
+}
+
+// ════════════════════════════════════════════════
+// CAPTURE STATUS — tells you WHY the live feed is empty
+// instead of it just silently sitting there with 0 rows.
+// ════════════════════════════════════════════════
+async function checkCaptureStatus() {
+  const banner = document.getElementById('capture-banner');
+  if (!banner) return; // not on dashboard tab
+  const d = await apiFetch('/capture-status');
+  if (!d) return;
+  if (d.packets_captured > 0) { banner.style.display = 'none'; return; }
+
+  let msg = '⚠ No packets captured yet — live feed is empty. ';
+  if (!d.scapy_available) {
+    msg += 'Scapy is not installed/importable on the server. Run: pip install scapy';
+  } else if (d.running_as_admin_or_root === false) {
+    msg += 'The server process is NOT running as Administrator/root — raw packet capture needs elevated privileges. Fully close the app and re-launch cmd/PowerShell via "Run as administrator", then start it again from that window.';
+  } else if (!d.interfaces_detected || d.interfaces_detected.length === 0) {
+    msg += 'No network interfaces were detected by scapy. On Windows this almost always means Npcap is not installed — install it from https://npcap.com/ and check "WinPcap API-compatible Mode" during setup.';
+  } else if (d.interface_configured) {
+    msg += `Configured interface "${d.interface_configured}" may be wrong or has no traffic. Detected interfaces: ${d.interfaces_detected.join(', ')}. Try clearing NETWORK_INTERFACE in .env or setting it to the right adapter.`;
+  } else {
+    msg += `Using the default interface, but 0 packets seen so far. Try generating some traffic (browse a site) and wait a few seconds. Detected interfaces: ${d.interfaces_detected.join(', ')}.`;
+  }
+  banner.textContent = msg;
+  banner.style.display = 'block';
+}
+
+function updateClock() {
+  document.getElementById('sb-time').textContent = new Date().toLocaleString();
+}
+
+const MASTER_TABS = [
+  {id:'dashboard',   label:'Dashboard'},
+  {id:'events',      label:'Event Log'},
+  {id:'analytics',   label:'Analytics'},
+  {id:'correlation', label:'Correlation'},
+  {id:'hunt',        label:'Threat Hunt'},
+  {id:'forensics',   label:'Forensics'},
+  {id:'risk-explain',label:'Risk Explainer'},
+  {id:'ioc',         label:'IOC'},
+  {id:'cases',       label:'Cases'},
+  {id:'threat-intel',label:'Threat Intel'},
+  {id:'honeypot',    label:'Honeypot'},
+  {id:'assets',      label:'Assets'},
+  {id:'uba',         label:'UBA'},
+  {id:'soar',        label:'SOAR'},
+  {id:'firewall',    label:'Firewall'},
+  {id:'ransomware',  label:'Ransomware'},
+  {id:'virus',       label:'Virus/AV'},
+  {id:'alerts-panel',label:'Alerts'},
+  {id:'reports-panel',label:'Reports'},
+  {id:'maintenance', label:'Maintenance'},
+  {id:'users',       label:'Users'},
+];
+const ANALYST_TABS = [
+  {id:'dashboard',   label:'Dashboard'},
+  {id:'events',      label:'Event Log'},
+  {id:'analytics',   label:'Analytics'},
+  {id:'correlation', label:'Correlation'},
+  {id:'hunt',        label:'Threat Hunt'},
+  {id:'forensics',   label:'Forensics'},
+  {id:'risk-explain',label:'Risk Explainer'},
+  {id:'ioc',         label:'IOC'},
+  {id:'cases',       label:'Cases'},
+  {id:'threat-intel',label:'Threat Intel'},
+  {id:'honeypot',    label:'Honeypot'},
+  {id:'assets',      label:'Assets'},
+  {id:'uba',         label:'UBA'},
+  {id:'ransomware',  label:'Ransomware'},
+  {id:'virus',       label:'Virus/AV'},
+  {id:'alerts-panel',label:'My Alerts'},
+  {id:'reports-panel',label:'My Reports'},
+];
+
+function buildTabs() {
+  const tabs = S.role === 'master' ? MASTER_TABS : ANALYST_TABS;
+  const cont = document.getElementById('hdr-tabs');
+  cont.innerHTML = tabs.map(t =>
+    `<button class="tab-btn ${t.id==='dashboard'?'active':''}" onclick="switchTab('${t.id}')" id="tab-${t.id}">${t.label}</button>`
+  ).join('');
+  const mc = document.getElementById('main-content');
+  mc.innerHTML = tabs.map(t => `<div class="panel" id="panel-${t.id}"></div>`).join('');
+  document.getElementById('panel-dashboard').classList.add('active');
+}
+
+// Sidebar open/close for narrow screens (hamburger button + overlay tap)
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebarOnMobile() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const tb = document.getElementById(`tab-${id}`);
+  const pn = document.getElementById(`panel-${id}`);
+  if (tb) tb.classList.add('active');
+  if (pn) pn.classList.add('active');
+  closeSidebarOnMobile();
+  const loaders = {
+    'dashboard':    loadDashboard,
+    'events':       loadEvents,
+    'analytics':    loadAnalytics,
+    'firewall':     loadFirewall,
+    'ransomware':   loadRansomware,
+    'virus':        loadVirus,
+    'alerts-panel': loadAlertsPanel,
+    'reports-panel':loadReportsPanel,
+    'users':        loadUsers,
+    'correlation':  loadCorrelation,
+    'hunt':         loadHunt,
+    'forensics':    loadForensics,
+    'risk-explain': loadRiskExplain,
+    'ioc':          loadIOC,
+    'cases':        loadCases,
+    'threat-intel': loadThreatIntel,
+    'honeypot':     loadHoneypot,
+    'assets':       loadAssets,
+    'uba':          loadUBA,
+    'soar':         loadSOAR,
+    'maintenance':  loadMaintenance,
+  };
+  if (loaders[id]) loaders[id]();
+}
+
+// ════════════════════════════════════════════════
+// DATA REFRESH
+// ════════════════════════════════════════════════
+async function refreshData() {
+  if (!S.token) return;
+  const [evts, stats] = await Promise.all([
+    apiFetch('/events?limit=100'),
+    apiFetch('/stats'),
+  ]);
+  if (evts) S.events = evts.events;
+  if (stats) { S.prevStats = S.stats; S.stats = stats; }
+  const active = document.querySelector('.panel.active');
+  if (active) {
+    const id = active.id.replace('panel-','');
+    if (id === 'dashboard') updateDashboardLive();
+    if (id === 'events') renderEventsTable();
+  }
+}
+
+async function refreshNotifications() {
+  const d = await apiFetch('/notifications');
+  if (!d) return;
+  const cnt = d.unread_count;
+  const badge = document.getElementById('notif-count');
+  if (cnt > 0) { badge.style.display='flex'; badge.textContent=cnt; }
+  else badge.style.display='none';
+  // Show popup for new critical notifications
+  d.notifications.filter(n=>!n.read && (n.type==='RANSOMWARE'||n.type==='VIRUS')).forEach(n=>{
+    showPopup(n.message, 'CRITICAL', n.type);
+  });
+}
+
+// ════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════
+function loadDashboard() {
+  const p = document.getElementById('panel-dashboard');
+  p.innerHTML = `
+  <div id="capture-banner" style="display:none;margin-bottom:12px;padding:12px 16px;border-radius:6px;background:#3a2410;border:1px solid var(--orange);color:var(--orange);font-size:13px"></div>
+
+  <div class="card" id="ai-summary-card" style="margin-bottom:14px;border-left:3px solid var(--accent)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:0">🤖 AI Summary — In Plain English</div>
+      <button class="pill-btn accent" onclick="loadAiSummary()" id="ai-summary-refresh">↻ Refresh</button>
+    </div>
+    <div id="ai-summary-body" style="font-size:13px;line-height:1.7;color:var(--text)">Loading…</div>
+    <div id="ai-summary-meta" style="margin-top:8px;font-size:11px;color:var(--muted)"></div>
+  </div>
+
+  <div class="section-divider">Current Security State</div>
+  <div class="row" id="kpi-row-1"></div>
+  <div class="row" style="margin-top:0" id="kpi-row-2"></div>
+
+  <div class="section-divider">Why Is Risk Changing?</div>
+  <div class="grid2">
+    <div class="card" style="grid-column:1/2">
+      <div class="card-title">Risk Score Trend</div>
+      <div class="chart-wrap"><canvas id="chart-risk"></canvas></div>
+      <div class="row" style="margin:12px 0 0;gap:10px" id="risk-trend-stats"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Protocol Distribution</div>
+      <div class="chart-wrap"><canvas id="chart-proto"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-divider">Where Is The Threat Coming From?</div>
+  <div class="grid3" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="card">
+      <div class="card-title">Threat Severity</div>
+      <div id="threat-bars"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Threat Sources</div>
+      <div id="top-sources">Loading…</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Attack Types</div>
+      <div id="top-attacks">Loading…</div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">Attack Analytics — Last Poll</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Attack Type</th><th>Count</th><th>% of Attacks</th><th>Trend</th></tr></thead>
+      <tbody id="attack-table-body"></tbody>
+    </table></div>
+  </div>
+
+  <div class="section-divider">What Is Happening Right Now?</div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">Live Security Log</div>
+    <div class="log-box" id="live-log"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Live Event Feed <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0"> — click an IP for intelligence, click a row for details</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Source</th><th>Threat</th><th>Attack Type</th><th>MITRE</th><th>Risk</th><th>Protocol</th><th>Time</th><th>Country</th><th></th></tr></thead>
+      <tbody id="live-feed-body"></tbody>
+    </table></div>
+  </div>`;
+  initDashboardCharts();
+  updateDashboardLive();
+  loadAiSummary();
+}
+
+// ════════════════════════════════════════════════
+// AI SUMMARIZER — plain-English digest for non-technical readers
+// ════════════════════════════════════════════════
+async function loadAiSummary() {
+  const body = document.getElementById('ai-summary-body');
+  const meta = document.getElementById('ai-summary-meta');
+  const btn  = document.getElementById('ai-summary-refresh');
+  if (!body) return;
+  if (btn) btn.disabled = true;
+  body.textContent = 'Thinking…';
+  meta.textContent = '';
+  const d = await apiFetch('/summary/plain-english');
+  if (btn) btn.disabled = false;
+  if (!d) { body.textContent = 'Could not load summary.'; return; }
+
+  if (d.llm_narrative) {
+    // Local LLM (Ollama) is configured and answered — show its narration.
+    body.innerHTML = `<p>${escapeHtml(d.llm_narrative).replace(/\n+/g,'</p><p>')}</p>`;
+  } else {
+    // Template fallback — still fully grounded, just not LLM-phrased.
+    const s = d.summary || {};
+    body.innerHTML = `
+      <p><b>What's happening:</b> ${escapeHtml(s.whats_happening||'')}</p>
+      <p><b>Why:</b> ${escapeHtml(s.why||'')}</p>
+      <p><b>What you need to do:</b> ${escapeHtml(s.what_to_do||'')}</p>`;
+  }
+  const riskWord = (d.summary && d.summary.risk_in_plain_words) || '';
+  meta.textContent = `Risk level: ${riskWord}  ·  Generated by: ${d.generated_by === 'template' ? 'built-in summarizer' : d.generated_by}` +
+    (d.generated_by === 'template' ? '  ·  Connect a local model (Ollama) in Settings for a fuller AI write-up.' : '');
+}
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+function initDashboardCharts() {
+  const dark = { color:'#768390', grid:'#2D333B' };
+  // Risk trend (native event risk_score scale is 0-10)
+  if (S.charts.risk) S.charts.risk.destroy();
+  S.charts.risk = new Chart(document.getElementById('chart-risk').getContext('2d'),{
+    type:'line',
+    data:{labels:[],datasets:[{label:'Risk Score (0–10)',data:[],borderColor:'#4A90D9',backgroundColor:'#4A90D920',tension:.4,pointRadius:0,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:dark.color,maxTicksLimit:8},grid:{color:dark.grid}},y:{min:0,max:10,ticks:{color:dark.color},grid:{color:dark.grid}}}}
+  });
+  // Protocol pie
+  if (S.charts.proto) S.charts.proto.destroy();
+  S.charts.proto = new Chart(document.getElementById('chart-proto').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:['TCP','UDP','ICMP'],datasets:[{data:[0,0,0],backgroundColor:['#4A90D9','#3FB950','#E3671C'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#768390'}}},cutout:'55%'}
+  });
+}
+
+// ── small render helpers reused across the dashboard ──
+function sevPill(sev) {
+  const c = {LOW:'var(--green)',MEDIUM:'var(--yellow)',HIGH:'var(--orange)',CRITICAL:'var(--red)'}[sev]||'var(--muted)';
+  return `<span class="pill" style="background:${c}20;color:${c}"><span class="pill-dot" style="background:${c}"></span>${sev}</span>`;
+}
+function riskMini(v) {
+  const val = Math.min(v||0, 10);
+  const pct = Math.max(2, val*10);
+  const c = val>=7?'var(--red)':val>=4?'var(--orange)':val>=2?'var(--yellow)':'var(--green)';
+  return `<span style="font-weight:700;color:${c}">${val.toFixed(1)}<span style="color:var(--muted);font-weight:400">/10</span></span>
+          <span class="risk-mini-wrap"><span class="risk-mini-bar" style="width:${pct}%;background:${c}"></span></span>`;
+}
+// Compares current vs previous poll and returns a small trend readout. Real delta, not fabricated.
+function trendReadout(curr, prev) {
+  if (prev===undefined || prev===null) return `<span style="color:var(--muted)">since last check: —</span>`;
+  const diff = curr - prev;
+  if (diff===0) return `<span style="color:var(--muted)">─ steady since last check</span>`;
+  const pct = prev ? Math.round(Math.abs(diff/prev*100)) : null;
+  const arrow = diff>0 ? '↑' : '↓';
+  const color = diff>0 ? 'var(--red)' : 'var(--green)';
+  return `<span style="color:${color}">${arrow} ${Math.abs(diff)}${pct!==null?` (${pct}%)`:''} since last check</span>`;
+}
+function kpiCard(label, value, color, trendHtml, onclick) {
+  return `<div class="kpi-card" ${onclick?`onclick="${onclick}"`:''}>
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-val" style="color:${color}">${value}</div>
+    <div class="kpi-trend">${trendHtml||''}</div>
+  </div>`;
+}
+
+function updateDashboardLive() {
+  const sc = S.stats.severity_counts || {};
+  const prevSc = (S.prevStats && S.prevStats.severity_counts) || {};
+  const total = S.events.length;
+
+  // ── KPI ROW 1: severity counts, each with a real since-last-poll delta ──
+  const kr1 = document.getElementById('kpi-row-1');
+  if (kr1) {
+    kr1.innerHTML =
+      kpiCard('Total Events', total, 'var(--text)', trendReadout(total, (S.prevStats&&S.prevStats.total_events))) +
+      kpiCard('Low', sc.LOW||0, 'var(--green)', trendReadout(sc.LOW||0, prevSc.LOW), "filterEventsBySeverity('LOW')") +
+      kpiCard('Medium', sc.MEDIUM||0, 'var(--yellow)', trendReadout(sc.MEDIUM||0, prevSc.MEDIUM), "filterEventsBySeverity('MEDIUM')") +
+      kpiCard('High', sc.HIGH||0, 'var(--orange)', trendReadout(sc.HIGH||0, prevSc.HIGH), "filterEventsBySeverity('HIGH')") +
+      kpiCard('Critical', sc.CRITICAL||0, 'var(--red)', trendReadout(sc.CRITICAL||0, prevSc.CRITICAL), "filterEventsBySeverity('CRITICAL')");
+  }
+
+  // ── KPI ROW 2: SOC counters, each with real since-last-poll delta + click-through ──
+  const corrStats = S.stats.correlation_stats||{};
+  const hpStats   = S.stats.honeypot_stats||{};
+  const iocStats  = S.stats.ioc_stats||{};
+  const caseStats = S.stats.case_stats||{};
+  const tiStats   = S.stats.threat_intel_stats||{};
+  const assetStats= S.stats.asset_stats||{};
+  const pCorr = (S.prevStats&&S.prevStats.correlation_stats)||{};
+  const pHp   = (S.prevStats&&S.prevStats.honeypot_stats)||{};
+  const pIoc  = (S.prevStats&&S.prevStats.ioc_stats)||{};
+  const pCase = (S.prevStats&&S.prevStats.case_stats)||{};
+  const pTi   = (S.prevStats&&S.prevStats.threat_intel_stats)||{};
+  const kr2 = document.getElementById('kpi-row-2');
+  if (kr2) {
+    kr2.innerHTML =
+      kpiCard('Correlated Incidents', corrStats.unacknowledged||0, 'var(--accent)', trendReadout(corrStats.unacknowledged||0, pCorr.unacknowledged), "switchTab('correlation')") +
+      kpiCard('Open Cases', caseStats.open||0, 'var(--yellow)', trendReadout(caseStats.open||0, pCase.open), "switchTab('cases')") +
+      kpiCard('Active IOCs', iocStats.total||0, 'var(--green)', trendReadout(iocStats.total||0, pIoc.total), "switchTab('ioc')") +
+      kpiCard('Honeypot Hits', hpStats.total_hits||0, 'var(--orange)', trendReadout(hpStats.total_hits||0, pHp.total_hits), "switchTab('honeypot')") +
+      kpiCard('TI Lookups', tiStats.lookups||0, 'var(--accent)', trendReadout(tiStats.lookups||0, pTi.lookups), "switchTab('threat-intel')") +
+      kpiCard('Protected Assets', assetStats.total||0, 'var(--muted)', '', "switchTab('assets')");
+  }
+
+  // ── Risk Score Trend chart + readout (current / peak / change / trend direction) ──
+  const trend = S.stats.risk_trend || [];
+  if (S.charts.risk) {
+    S.charts.risk.data.labels = trend.map(t=>t.time);
+    S.charts.risk.data.datasets[0].data = trend.map(t=>t.risk);
+    S.charts.risk.update('none');
+  }
+  const rts = document.getElementById('risk-trend-stats');
+  if (rts) {
+    if (trend.length) {
+      const cur = trend[trend.length-1].risk;
+      const peak = Math.max(...trend.map(t=>t.risk));
+      const first = trend[0].risk;
+      const change = first ? Math.round((cur-first)/first*100) : 0;
+      const dir = cur>first ? 'Escalating' : cur<first ? 'Cooling down' : 'Flat';
+      const dirColor = cur>first ? 'var(--red)' : cur<first ? 'var(--green)' : 'var(--muted)';
+      rts.innerHTML = `
+        <div style="flex:1"><div class="kpi-label">Current</div><div style="font-weight:700">${cur.toFixed(1)}/10</div></div>
+        <div style="flex:1"><div class="kpi-label">Peak</div><div style="font-weight:700">${peak.toFixed(1)}/10</div></div>
+        <div style="flex:1"><div class="kpi-label">Change</div><div style="font-weight:700">${change>=0?'+':''}${change}%</div></div>
+        <div style="flex:1"><div class="kpi-label">Trend</div><div style="font-weight:700;color:${dirColor}">${dir}</div></div>`;
+    } else rts.innerHTML = `<div style="color:var(--muted);font-size:12px">Not enough data yet</div>`;
+  }
+
+  // ── Protocol chart ──
+  const pc = S.stats.protocol_counts || {};
+  if (S.charts.proto) {
+    S.charts.proto.data.datasets[0].data = [pc.TCP||0, pc.UDP||0, pc.ICMP||0];
+    S.charts.proto.update('none');
+  }
+
+  // ── Threat Severity — compact distribution (count + % of total, not a raw count bar) ──
+  const tb = document.getElementById('threat-bars');
+  if (tb) {
+    const sevs = ['LOW','MEDIUM','HIGH','CRITICAL'];
+    const colors = {'LOW':'var(--green)','MEDIUM':'var(--yellow)','HIGH':'var(--orange)','CRITICAL':'var(--red)'};
+    tb.innerHTML = sevs.map(s=>{
+      const cnt = sc[s]||0; const pct = total ? (cnt/total*100).toFixed(1) : '0.0';
+      return `<div style="margin-bottom:12px;cursor:pointer" onclick="filterEventsBySeverity('${s}')">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          ${sevPill(s)}
+          <span style="color:var(--muted);font-size:11px">${cnt} alerts &nbsp;<strong style="color:${colors[s]}">${pct}%</strong></span>
+        </div>
+        <div class="risk-bar-wrap"><div class="risk-bar" style="width:${pct}%;background:${colors[s]}"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Top Threat Sources (from /api/stats top_attackers) — click → IP Intelligence ──
+  const ts = document.getElementById('top-sources');
+  if (ts) {
+    const top = (S.stats.top_attackers||[]).slice(0,5);
+    ts.innerHTML = top.length ? top.map((t,i)=>`
+      <div class="mini-list-row" onclick="openIpIntel('${t.ip}')">
+        <span><span class="mini-list-rank">${i+1}</span><span style="font-family:monospace">${t.ip}</span></span>
+        <span style="color:var(--muted);font-size:11px">${t.count} events</span>
+      </div>`).join('') : `<div style="color:var(--muted);font-size:12px;padding:8px 0">No data yet</div>`;
+  }
+
+  // ── Top Attack Types — click → filters the Events tab to that attack type ──
+  const ta = document.getElementById('top-attacks');
+  if (ta) {
+    const ac = S.stats.attack_type_counts || {};
+    const top = Object.entries(ac).filter(([k])=>k!=='Normal').sort((a,b)=>b[1]-a[1]).slice(0,5);
+    ta.innerHTML = top.length ? top.map(([type,cnt],i)=>`
+      <div class="mini-list-row" onclick="filterEventsByAttack('${type.replace(/'/g,"\\'")}')">
+        <span><span class="mini-list-rank">${i+1}</span>${type}</span>
+        <span style="color:var(--muted);font-size:11px">${cnt}</span>
+      </div>`).join('') : `<div style="color:var(--muted);font-size:12px;padding:8px 0">No attacks observed yet</div>`;
+  }
+
+  // ── Attack Analytics table — count + % of attacks + real trend vs the previous poll ──
+  const atb = document.getElementById('attack-table-body');
+  if (atb) {
+    const ac = S.stats.attack_type_counts || {};
+    const pac = (S.prevStats && S.prevStats.attack_type_counts) || {};
+    const entries = Object.entries(ac).filter(([k])=>k!=='Normal').sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const attackTotal = entries.reduce((s,[,c])=>s+c,0) || 1;
+    atb.innerHTML = entries.length ? entries.map(([type,cnt])=>{
+      const pct = (cnt/attackTotal*100).toFixed(1);
+      const prevCnt = pac[type];
+      return `<tr style="cursor:pointer" onclick="filterEventsByAttack('${type.replace(/'/g,"\\'")}')">
+        <td style="color:var(--orange)">${type}</td>
+        <td style="font-weight:700">${cnt}</td>
+        <td>${pct}%</td>
+        <td style="font-size:11px">${trendReadout(cnt, prevCnt)}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">No attacks observed yet</td></tr>`;
+  }
+
+  // ── Live log ──
+  const ll = document.getElementById('live-log');
+  if (ll) {
+    const colors = {LOW:'var(--green)',MEDIUM:'var(--yellow)',HIGH:'var(--orange)',CRITICAL:'var(--red)'};
+    ll.innerHTML = S.events.slice(0,20).map((e,i)=>
+      `<div class="log-line" style="color:${colors[e.severity]};cursor:pointer" onclick="openEventModal(${i})">[${e.severity}] ${e.src_ip} | ${e.protocol} | Risk=${Math.min(e.risk_score,10).toFixed(1)}/10 | ${e.attack_type}${e.mitre_technique?' | '+e.mitre_technique:''}</div>`
+    ).join('');
+  }
+
+  // ── Live feed — IP is the primary object, severity pill, risk mini-bar, ⋮ action menu ──
+  _feedEvents = S.events.slice(0,15);
+  const fb = document.getElementById('live-feed-body');
+  if (fb) {
+    fb.innerHTML = _feedEvents.map((e,i)=>{
+      const mitre  = e.mitre_technique
+        ? `<a href="https://attack.mitre.org/techniques/${e.mitre_technique}/" target="_blank" onclick="event.stopPropagation()"
+              style="color:var(--accent);font-size:10px;font-family:monospace">${e.mitre_technique}</a>
+           <br><span style="font-size:9px;color:var(--muted)">${e.mitre_tactic||''}</span>` : '-';
+      const isCritical = e.severity==='CRITICAL' || e.severity==='HIGH';
+      const directAction = (isCritical && S.role==='master')
+        ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();quickBlock('${e.src_ip}')">${e.severity==='CRITICAL'?'ISOLATE':'BLOCK'}</button>` : '';
+      return `<tr>
+        <td class="ip-cell" onclick="openIpIntel('${e.src_ip}')">
+          <span style="display:flex;align-items:center">
+            <span class="status-dot" style="background:${e.blocked?'var(--red)':'var(--green)'}"></span>
+            <span>
+              <div class="ip-main">${e.src_ip}</div>
+              <div class="ip-org">${e.organization||'Unknown'}${e.blocked?' · blocked':''}</div>
+            </span>
+          </span>
+        </td>
+        <td>${sevPill(e.severity)}</td>
+        <td style="color:${e.attack_type!=='Normal'?'var(--orange)':'var(--muted)'}">${e.attack_type}</td>
+        <td>${mitre}</td>
+        <td>${riskMini(e.risk_score)}</td>
+        <td style="color:var(--muted)">${e.protocol}</td>
+        <td style="font-family:monospace;color:var(--muted);font-size:11px">${e.timestamp_str}</td>
+        <td style="color:var(--muted)">${e.country}</td>
+        <td style="text-align:right;white-space:nowrap">
+          ${directAction}
+          <span class="action-menu-wrap">
+            <button class="action-menu-btn" onclick="event.stopPropagation();toggleActionMenu('am-${i}')">⋮</button>
+            <div class="action-menu" id="am-${i}">
+              <button onclick="event.stopPropagation();closeAllActionMenus();openEventModal(${i})">View Details</button>
+              <button onclick="event.stopPropagation();closeAllActionMenus();quickInvestigate('${e.src_ip}')">Investigate</button>
+              <button onclick="event.stopPropagation();closeAllActionMenus();quickThreatHunt('${e.src_ip}')">Threat Hunt</button>
+              ${S.role==='master'?`<button class="danger" onclick="event.stopPropagation();closeAllActionMenus();quickBlock('${e.src_ip}')">Block</button>`:''}
+              <button onclick="event.stopPropagation();closeAllActionMenus();quickCreateCase('${e.src_ip}','${(e.attack_type||'').replace(/'/g,"\\'")}')">Create Case</button>
+            </div>
+          </span>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// ════════════════════════════════════════════════
+// ROW ACTION MENU (⋮) — replaces a Block button on every row
+// ════════════════════════════════════════════════
+function toggleActionMenu(id) {
+  const el = document.getElementById(id);
+  const wasOpen = el.classList.contains('show');
+  closeAllActionMenus();
+  if (!wasOpen) el.classList.add('show');
+}
+function closeAllActionMenus() {
+  document.querySelectorAll('.action-menu.show').forEach(m=>m.classList.remove('show'));
+}
+document.addEventListener('click', closeAllActionMenus);
+
+// ════════════════════════════════════════════════
+// QUICK ACTIONS — reuse the existing Risk Explain / Hunt / Cases panels
+// ════════════════════════════════════════════════
+function quickInvestigate(ip) {
+  switchTab('risk-explain');
+  const inp = document.getElementById('re-ip');
+  if (inp) { inp.value = ip; explainRisk(); }
+}
+function quickThreatHunt(ip) {
+  switchTab('hunt');
+  quickHunt(ip);
+}
+async function quickCreateCase(ip, attackType) {
+  switchTab('cases');
+  await loadCases();
+  const t = document.getElementById('case-title'), d = document.getElementById('case-desc'), i = document.getElementById('case-ip');
+  if (t) t.value = `Investigation — ${ip}${attackType?' ('+attackType+')':''}`;
+  if (d) d.value = attackType ? `Auto-filled from live feed: ${attackType} activity from ${ip}` : `Auto-filled from live feed: activity from ${ip}`;
+  if (i) i.value = ip;
+  t?.focus();
+}
+function filterEventsBySeverity(sev) {
+  switchTab('events');
+  setEvtFilter(sev);
+}
+function filterEventsByAttack(type) {
+  switchTab('events');
+  evtSearch = type;
+  setEvtFilter('ALL');
+  const inp = document.getElementById('evt-search');
+  if (inp) inp.value = type;
+}
+
+// ════════════════════════════════════════════════
+// IP INTELLIGENCE — click an IP anywhere to open this
+// ════════════════════════════════════════════════
+async function openIpIntel(ip) {
+  const overlay = document.createElement('div');
+  overlay.className = 'ov-backdrop';
+  overlay.innerHTML = `<div class="ov-box" style="text-align:center;color:var(--muted);padding:40px">Looking up ${ip}…</div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e=>{ if (e.target===overlay) overlay.remove(); });
+
+  const ipEvents = S.events.filter(e=>e.src_ip===ip);
+  const [ti, risk] = await Promise.all([
+    apiFetch(`/threat-intel/ip/${ip}`),
+    apiFetch(`/risk/explain/${ip}`),
+  ]);
+  const org = ipEvents[0]?.organization || ti?.isp || 'Unknown';
+  const country = ipEvents[0]?.country || ti?.country || 'Unknown';
+  const malicious = ti?.is_malicious;
+  const repColor = malicious===true ? 'var(--red)' : malicious===false ? 'var(--green)' : 'var(--muted)';
+  const repLabel = malicious===true ? 'MALICIOUS' : malicious===false ? 'CLEAN' : 'UNKNOWN';
+  const attackCounts = {};
+  ipEvents.forEach(e=>{ if (e.attack_type && e.attack_type!=='Normal') attackCounts[e.attack_type]=(attackCounts[e.attack_type]||0)+1; });
+  const protocols = [...new Set(ipEvents.map(e=>e.protocol))];
+  const times = ipEvents.map(e=>e.timestamp_str).filter(Boolean);
+
+  const box = overlay.querySelector('.ov-box');
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <div style="font-family:monospace;font-size:20px;font-weight:800">${ip}</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:2px">${org} · ${country}</div>
+      </div>
+      <button class="btn btn-sm" onclick="this.closest('.ov-backdrop').remove()">Close</button>
+    </div>
+    <div class="row" style="gap:10px;margin-bottom:16px">
+      <div class="card" style="flex:1;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Reputation</div>
+        <span class="pill" style="background:${repColor}20;color:${repColor}"><span class="pill-dot" style="background:${repColor}"></span>${repLabel}</span>
+      </div>
+      <div class="card" style="flex:1;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Risk Score</div>
+        <strong style="font-size:16px">${risk ? risk.final_score+' / 100' : '—'}</strong>
+      </div>
+      <div class="card" style="flex:1;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Severity</div>
+        <strong>${risk ? sevPill(risk.severity) : '—'}</strong>
+      </div>
+    </div>
+    ${ti && ti.is_malicious ? `
+    <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px">
+      Threat intel confidence <strong style="color:var(--text)">${ti.confidence}%</strong>
+      ${ti.threat_types?.length ? ' · ' + ti.threat_types.join(', ') : ''}
+      ${ti.reports ? ` · ${ti.reports} reports` : ''}
+    </div>` : ''}
+    <div class="card-title" style="margin-bottom:8px">Activity</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.8">
+      Events&nbsp; <strong style="color:var(--text)">${ipEvents.length}</strong><br>
+      First seen (this session)&nbsp; <strong style="color:var(--text)">${times[times.length-1]||'—'}</strong><br>
+      Last seen&nbsp; <strong style="color:var(--text)">${times[0]||'—'}</strong><br>
+      Protocols&nbsp; <strong style="color:var(--text)">${protocols.join(' / ')||'—'}</strong>
+    </div>
+    ${Object.keys(attackCounts).length ? `
+    <div class="card-title" style="margin-bottom:8px">Attack Associations</div>
+    <div style="font-size:12px;margin-bottom:14px">
+      ${Object.entries(attackCounts).map(([t,c])=>`<div style="display:flex;justify-content:space-between;padding:3px 0">${t}<strong>${c}</strong></div>`).join('')}
+    </div>` : ''}
+    <div id="ip-ai-analysis"></div>
+    <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="investigateWithAI('${ip}')">🧠 Investigate with AHRAS AI</button>
+      <button class="btn btn-sm btn-secondary" onclick="this.closest('.ov-backdrop').remove();quickThreatHunt('${ip}')">Threat Hunt</button>
+      ${S.role==='master'?`<button class="btn btn-danger btn-sm" onclick="quickBlock('${ip}')">Block IP</button>`:''}
+      <button class="btn btn-sm btn-secondary" onclick="this.closest('.ov-backdrop').remove();quickCreateCase('${ip}')">Create Case</button>
+    </div>`;
+}
+
+// "Explain with AHRAS AI" — reuses the existing risk-explainer + XAI backend (already-computed
+// weighted risk components; this just surfaces it inline instead of requiring a tab switch).
+async function investigateWithAI(ip) {
+  const el = document.getElementById('ip-ai-analysis');
+  if (!el) return;
+  el.innerHTML = `<div class="ai-analysis" style="text-align:center;color:var(--muted)">Analysing evidence for ${ip}…</div>`;
+  const xai = await apiFetch(`/xai/explain/${ip}`); // full_report: base explanation + counterfactual + confidence
+  if (!xai) { el.innerHTML = ''; return; }
+  const exp = xai.base_explanation || {};
+  const cf = xai.counterfactual;
+  const conf = xai.confidence || {};
+  const comps = (exp.components||[]).slice().sort((a,b)=>b.contribution-a.contribution).slice(0,4);
+  el.innerHTML = `
+    <div class="ai-analysis">
+      <strong style="color:var(--accent)">🧠 AHRAS AI Analysis</strong><br><br>
+      ${exp.verdict||''}<br><br>
+      <strong>Primary evidence:</strong><br>
+      ${comps.map(c=>`• ${c.label}: ${c.reason||''}`).join('<br>')||'No contributing signals for this IP yet.'}<br><br>
+      ${cf ? `<strong>What would lower this to ${cf.target_severity}?</strong><br>${cf.explanation||''}<br><br>` : ''}
+      <span style="color:var(--muted)">Confidence: ${conf.overall_confidence!==undefined?Math.round(conf.overall_confidence*100)+'% ('+conf.label+')':'—'}</span>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════
+// EVENT DETAIL MODAL — click a live-feed row for the full record
+// ════════════════════════════════════════════════
+function openEventModal(i) {
+  const e = _feedEvents[i];
+  if (!e) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'ov-backdrop';
+  overlay.addEventListener('click', ev=>{ if (ev.target===overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div class="ov-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <strong style="font-size:15px">Event Detail</strong>
+        <button class="btn btn-sm" onclick="this.closest('.ov-backdrop').remove()">Close</button>
+      </div>
+      <div class="row" style="gap:10px;margin-bottom:14px">
+        <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:10px;color:var(--muted)">Severity</div>${sevPill(e.severity)}</div>
+        <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:10px;color:var(--muted)">Risk</div>${riskMini(e.risk_score)}</div>
+        <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:10px;color:var(--muted)">Time</div><strong style="font-size:11px">${e.timestamp_str||'—'}</strong></div>
+      </div>
+      <div style="font-size:12px;line-height:2">
+        <strong>Source</strong> <span style="float:right;font-family:monospace">${e.src_ip}</span><br>
+        <strong>Organization</strong> <span style="float:right;color:var(--muted)">${e.organization||'Unknown'}</span><br>
+        <strong>Protocol</strong> <span style="float:right;color:var(--muted)">${e.protocol}</span><br>
+        <strong>Attack</strong> <span style="float:right;color:var(--orange)">${e.attack_type}</span><br>
+        <strong>Country</strong> <span style="float:right;color:var(--muted)">${e.country}</span><br>
+        <strong>MITRE</strong> <span style="float:right">${e.mitre_technique?`<a href="https://attack.mitre.org/techniques/${e.mitre_technique}/" target="_blank" style="color:var(--accent)">${e.mitre_technique}</a>`:'—'}</span><br>
+        ${e.confidence!==undefined?`<strong>Confidence</strong> <span style="float:right;color:var(--muted)">${Math.round(e.confidence*100)}%</span><br>`:''}
+        ${e.signature_rule?`<strong>Signature</strong> <span style="float:right;color:var(--muted)">${e.signature_rule}</span><br>`:''}
+        ${e.anomaly_label?`<strong>Anomaly Label</strong> <span style="float:right;color:var(--muted)">${e.anomaly_label}</span><br>`:''}
+      </div>
+      <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="this.closest('.ov-backdrop').remove();openIpIntel('${e.src_ip}')">🧠 Explain with AHRAS AI</button>
+        <button class="btn btn-sm btn-secondary" onclick="this.closest('.ov-backdrop').remove();quickThreatHunt('${e.src_ip}')">Threat Hunt</button>
+        ${S.role==='master'?`<button class="btn btn-danger btn-sm" onclick="quickBlock('${e.src_ip}')">Block</button>`:''}
+        <button class="btn btn-sm btn-secondary" onclick="this.closest('.ov-backdrop').remove();quickCreateCase('${e.src_ip}','${(e.attack_type||'').replace(/'/g,"\\'")}')">Create Case</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ════════════════════════════════════════════════
+// EVENTS TAB
+// ════════════════════════════════════════════════
+let evtFilter = 'ALL', evtSearch = '';
+function loadEvents() {
+  const p = document.getElementById('panel-events');
+  p.innerHTML = `
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    <input id="evt-search" placeholder="Search IP, attack, country…" oninput="evtSearch=this.value;renderEventsTable()"
+      style="background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 14px;font-size:13px;width:260px;outline:none"/>
+    ${['ALL','LOW','MEDIUM','HIGH','CRITICAL'].map(s=>
+      `<button class="pill-btn ${s==='ALL'?'accent':''}" id="efbtn-${s}" onclick="setEvtFilter('${s}')">${s}</button>`
+    ).join('')}
+    <span style="margin-left:auto;color:var(--muted);font-size:12px" id="evt-count">0 events</span>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Time</th><th>Source IP</th><th>DNS/Org</th><th>Protocol</th><th>Attack Type</th><th>Threat</th><th>Risk</th><th>Country</th>${S.role==='master'?'<th>Actions</th>':''}</tr></thead>
+      <tbody id="events-body"></tbody>
+    </table></div>
+  </div>`;
+  renderEventsTable();
+}
+
+function setEvtFilter(f) {
+  evtFilter = f;
+  document.querySelectorAll('[id^="efbtn-"]').forEach(b=>b.classList.remove('accent'));
+  document.getElementById(`efbtn-${f}`).classList.add('accent');
+  renderEventsTable();
+}
+
+function renderEventsTable() {
+  const filtered = S.events.filter(e=>
+    (evtFilter==='ALL'||e.severity===evtFilter) &&
+    (!evtSearch || e.src_ip.includes(evtSearch)||e.attack_type.toLowerCase().includes(evtSearch.toLowerCase())||e.country.toLowerCase().includes(evtSearch.toLowerCase()))
+  );
+  const cnt = document.getElementById('evt-count');
+  if (cnt) cnt.textContent = `${filtered.length} events`;
+  const tb = document.getElementById('events-body');
+  if (!tb) return;
+  tb.innerHTML = filtered.slice(0,100).map((e,i)=>{
+    const rc = e.risk_score>7?'var(--red)':e.risk_score>4?'var(--yellow)':'var(--green)';
+    const action = S.role==='master'?`<td><button class="btn btn-danger btn-sm" onclick="quickBlock('${e.src_ip}')">Block</button></td>`:'';
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-family:monospace;color:var(--muted)">${e.timestamp_str}</td>
+      <td style="font-family:monospace">${e.src_ip}</td>
+      <td style="color:var(--muted)">${e.organization||'Unknown'}</td>
+      <td style="color:var(--muted)">${e.protocol}</td>
+      <td style="color:${e.attack_type!=='Normal'?'var(--orange)':'var(--muted)'}">${e.attack_type}</td>
+      <td><span class="badge b-${e.severity}">${e.severity}</span></td>
+      <td style="font-weight:700;color:${rc}">${Math.min(e.risk_score,10).toFixed(1)}</td>
+      <td style="color:var(--muted)">${e.country}</td>
+      ${action}
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════════════
+function loadAnalytics() {
+  const p = document.getElementById('panel-analytics');
+  p.innerHTML = `
+  <div class="grid2">
+    <div class="card"><div class="card-title">Risk Score Trend</div><div class="chart-wrap"><canvas id="a-risk"></canvas></div></div>
+    <div class="card"><div class="card-title">Protocol Mix</div><div class="chart-wrap"><canvas id="a-proto"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">Attack Frequency</div><div class="chart-wrap"><canvas id="a-attack"></canvas></div></div>
+    <div class="card">
+      <div class="card-title">Severity Heatmap</div>
+      <div class="grid2" id="a-heatmap"></div>
+    </div>
+  </div>`;
+  const dk = {color:'#768390',grid:'#2D333B'};
+  const trend = S.stats.risk_trend||[];
+  new Chart(document.getElementById('a-risk').getContext('2d'),{type:'line',
+    data:{labels:trend.map(t=>t.time),datasets:[{label:'Risk',data:trend.map(t=>t.risk),borderColor:'#4A90D9',backgroundColor:'#4A90D920',tension:.4,pointRadius:0,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:dk.color,maxTicksLimit:8},grid:{color:dk.grid}},y:{min:0,max:10,ticks:{color:dk.color},grid:{color:dk.grid}}}}
+  });
+  const pc=S.stats.protocol_counts||{};
+  new Chart(document.getElementById('a-proto').getContext('2d'),{type:'pie',
+    data:{labels:['TCP','UDP','ICMP'],datasets:[{data:[pc.TCP||0,pc.UDP||0,pc.ICMP||0],backgroundColor:['#4A90D9','#3FB950','#E3671C'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#768390'}}}}
+  });
+  const ac=S.stats.attack_type_counts||{};
+  const aLabels=Object.keys(ac).filter(k=>k!=='Normal');
+  new Chart(document.getElementById('a-attack').getContext('2d'),{type:'bar',
+    data:{labels:aLabels,datasets:[{data:aLabels.map(k=>ac[k]),backgroundColor:'#E3671C88',borderColor:'#E3671C',borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:dk.color},grid:{color:dk.grid}},y:{ticks:{color:dk.color},grid:{color:dk.grid}}}}
+  });
+  const sc=S.stats.severity_counts||{};const tot=S.events.length||1;
+  const hm=document.getElementById('a-heatmap');
+  const cols={LOW:'var(--green)',MEDIUM:'var(--yellow)',HIGH:'var(--orange)',CRITICAL:'var(--red)'};
+  hm.innerHTML=['LOW','MEDIUM','HIGH','CRITICAL'].map(s=>`
+    <div style="background:${cols[s]}15;border:1px solid ${cols[s]}30;border-radius:8px;padding:14px;text-align:center">
+      <div style="color:${cols[s]};font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:6px">${s}</div>
+      <div style="color:${cols[s]};font-size:28px;font-weight:800">${sc[s]||0}</div>
+      <div style="color:var(--muted);font-size:11px;margin-top:4px">${((sc[s]||0)/tot*100).toFixed(1)}%</div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════
+// FIREWALL (Master only)
+// ════════════════════════════════════════════════
+async function loadFirewall() {
+  if (S.role!=='master') return;
+  const [status, blocked, ports, audit] = await Promise.all([
+    apiFetch('/firewall/status'),
+    apiFetch('/firewall/blocked-ips'),
+    apiFetch('/firewall/blocked-ports'),
+    apiFetch('/firewall/audit?limit=30'),
+  ]);
+  if (!status) return;
+  S.fwStatus = status;
+  const t = status.toggles;
+  const p = document.getElementById('panel-firewall');
+  p.innerHTML = `
+  <div class="grid2">
+  <div class="card">
+    <div class="card-title">Firewall Controls</div>
+    <div style="background:${t.firewall_enabled?'#3fb95015':'#f8514915'};border:1px solid ${t.firewall_enabled?'#3fb95030':'#f8514930'};border-radius:6px;padding:10px 14px;margin-bottom:14px">
+      <span style="font-weight:700;color:${t.firewall_enabled?'var(--green)':'var(--red)'}">
+        ${t.firewall_enabled?'● FIREWALL ACTIVE':'○ FIREWALL INACTIVE'}
+      </span>
+      <span style="color:var(--muted);font-size:11px;margin-left:10px">${t.dry_run?'DRY-RUN MODE':'LIVE MODE'}</span>
+    </div>
+    ${[
+      ['firewall_enabled','Master Switch','Enable/disable ALL firewall functions'],
+      ['ip_blocking','IP Blocking','Allow manual IP block/unblock'],
+      ['auto_block','Auto-Block','Automatically block IPs above risk threshold'],
+      ['port_blocking','Port Blocking','Allow port-level blocking'],
+      ['rate_limiting','Rate Limiting','Detect high-rate IP sources'],
+      ['whitelist_enforcement','Whitelist Enforcement','Protect whitelisted IPs from blocking'],
+      ['dry_run','Dry-Run Mode','Log only — no real firewall rules applied'],
+    ].map(([feat,label,desc])=>`
+      <div class="toggle-row">
+        <div><div class="toggle-label">${label}</div><div class="toggle-desc">${desc}</div></div>
+        <label class="switch">
+          <input type="checkbox" ${t[feat]?'checked':''} onchange="fwToggle('${feat}',this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>`).join('')}
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Block IP</div>
+      <div class="form-group"><label>IP Address</label><input id="fw-ip" placeholder="e.g. 185.220.101.45"/></div>
+      <div class="form-group"><label>Reason</label><input id="fw-reason" placeholder="Reason for blocking"/></div>
+      <button class="btn btn-danger" onclick="blockIP()">Block IP</button>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Block Port</div>
+      <div class="form-row">
+        <div class="form-group"><label>Port</label><input type="number" id="fw-port" placeholder="e.g. 4444"/></div>
+        <div class="form-group"><label>Protocol</label>
+          <select id="fw-port-proto"><option>tcp</option><option>udp</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Reason</label><input id="fw-port-reason" placeholder=""/></div>
+      <button class="btn btn-danger" onclick="blockPort()">Block Port</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Whitelist IP</div>
+      <div class="form-group"><label>IP Address</label><input id="fw-wl-ip" placeholder="e.g. 10.0.1.100"/></div>
+      <button class="btn btn-success" onclick="whitelistIP()">Add to Whitelist</button>
+    </div>
+  </div>
+  </div>
+  <div class="grid2">
+  <div class="card">
+    <div class="card-title">Blocked IPs (${(blocked?.blocked||[]).length})</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>IP Address</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${(blocked?.blocked||[]).map(b=>`
+        <tr><td style="font-family:monospace">${b.ip}</td>
+        <td><span class="badge b-CRITICAL">BLOCKED</span></td>
+        <td><button class="btn btn-success btn-sm" onclick="unblockIP('${b.ip}')">Unblock</button></td></tr>
+      `).join('')||'<tr><td colspan="3" style="color:var(--muted);text-align:center">No blocked IPs</td></tr>'}
+      </tbody>
+    </table></div>
+    ${(blocked?.whitelist||[]).length?`
+    <div class="sep"></div>
+    <div style="color:var(--muted);font-size:11px;margin-bottom:8px">WHITELIST (${blocked.whitelist.length})</div>
+    ${blocked.whitelist.map(ip=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-family:monospace;font-size:12px;color:var(--green)">${ip}</span>
+        <button class="btn btn-sm" style="background:var(--card);border:1px solid var(--border);color:var(--muted)" onclick="removeWhitelist('${ip}')">Remove</button>
+      </div>`).join('')}`:''} 
+  </div>
+  <div class="card">
+    <div class="card-title">Blocked Ports</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Port</th><th>Protocol</th><th>Action</th></tr></thead>
+      <tbody>${(ports?.ports||[]).map(pp=>`
+        <tr><td>${pp.port}</td><td>${pp.protocol}</td>
+        <td><button class="btn btn-success btn-sm" onclick="unblockPort(${pp.port})">Unblock</button></td></tr>
+      `).join('')||'<tr><td colspan="3" style="color:var(--muted);text-align:center">No blocked ports</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Firewall Audit Log</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Time</th><th>Action</th><th>Detail</th><th>Operator</th></tr></thead>
+      <tbody>${(audit?.audit||[]).map(a=>`
+        <tr><td style="color:var(--muted);font-size:11px">${a.timestamp}</td>
+        <td><span style="color:var(--accent);font-size:11px;font-weight:600">${a.action}</span></td>
+        <td style="font-family:monospace;font-size:11px">${a.detail}</td>
+        <td style="color:var(--muted)">${a.operator}</td></tr>
+      `).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+  document.getElementById('sb-fw').textContent = t.firewall_enabled ? (t.dry_run?'ON (DRY-RUN)':'ON (LIVE)') : 'OFF';
+}
+
+async function fwToggle(feat, val) {
+  const r = await apiFetch('/firewall/toggle',{method:'POST',body:JSON.stringify({feature:feat,enabled:val})});
+  if (r) { showPopup(`${feat} ${val?'enabled':'disabled'}`,'LOW'); loadFirewall(); }
+}
+async function blockIP() {
+  const ip=document.getElementById('fw-ip').value.trim();
+  const reason=document.getElementById('fw-reason').value.trim();
+  if (!ip) return showPopup('Enter an IP address','MEDIUM');
+  const r = await apiFetch('/firewall/block-ip',{method:'POST',body:JSON.stringify({ip,reason})});
+  if (r?.success) { showPopup(`IP ${ip} blocked`,'HIGH'); loadFirewall(); }
+  else showPopup(r?.reason||'Failed','MEDIUM');
+}
+async function unblockIP(ip) {
+  const r = await apiFetch('/firewall/unblock-ip',{method:'POST',body:JSON.stringify({ip})});
+  if (r?.success) { showPopup(`IP ${ip} unblocked`,'LOW'); loadFirewall(); }
+}
+async function quickBlock(ip) {
+  const r = await apiFetch('/firewall/block-ip',{method:'POST',body:JSON.stringify({ip,reason:'Quick block from event feed'})});
+  if (r?.success) showPopup(`IP ${ip} blocked`,'HIGH');
+  else showPopup(r?.reason||'Blocking disabled — enable firewall first','MEDIUM');
+}
+async function blockPort() {
+  const port=parseInt(document.getElementById('fw-port').value);
+  const protocol=document.getElementById('fw-port-proto').value;
+  const reason=document.getElementById('fw-port-reason').value;
+  if (!port) return showPopup('Enter a port number','MEDIUM');
+  const r = await apiFetch('/firewall/block-port',{method:'POST',body:JSON.stringify({port,protocol,reason})});
+  if (r?.success) { showPopup(`Port ${port}/${protocol} blocked`,'HIGH'); loadFirewall(); }
+}
+async function unblockPort(port) {
+  await apiFetch(`/firewall/unblock-port/${port}`,{method:'POST'});
+  loadFirewall();
+}
+async function whitelistIP() {
+  const ip=document.getElementById('fw-wl-ip').value.trim();
+  if (!ip) return;
+  await apiFetch('/firewall/whitelist/add',{method:'POST',body:JSON.stringify({ip})});
+  showPopup(`${ip} added to whitelist`,'LOW'); loadFirewall();
+}
+async function removeWhitelist(ip) {
+  await apiFetch('/firewall/whitelist/remove',{method:'POST',body:JSON.stringify({ip})});
+  loadFirewall();
+}
+
+// ════════════════════════════════════════════════
+// RANSOMWARE
+// ════════════════════════════════════════════════
+async function loadRansomware() {
+  const d = await apiFetch('/ransomware/alerts?limit=50');
+  if (!d) return;
+  const p = document.getElementById('panel-ransomware');
+  const stats = d.stats||{};
+  p.innerHTML = `
+  <div class="row">
+    <div class="card"><div class="stat-val" style="color:var(--red)">${stats.total_alerts||0}</div><div class="stat-sub">Total Alerts</div></div>
+    <div class="card"><div class="stat-val" style="color:var(--red)">${stats.critical_alerts||0}</div><div class="stat-sub">Critical</div></div>
+    <div class="card"><div class="stat-val">${(stats.modification_rate||0).toFixed(1)}</div><div class="stat-sub">Files/sec</div></div>
+    <div class="card"><div class="stat-val">${stats.suspicious_renames||0}</div><div class="stat-sub">Suspicious Renames</div></div>
+    ${S.role==='master'?`<div class="card" style="display:flex;align-items:center;justify-content:space-between">
+      <div><div class="toggle-label">Ransomware Monitor</div><div class="toggle-desc">Enable/disable detection</div></div>
+      <label class="switch"><input type="checkbox" ${stats.enabled?'checked':''} onchange="toggleRansomware(this.checked)"><span class="slider"></span></label>
+    </div>`:''}
+  </div>
+  <div class="card">
+    <div class="card-title">Ransomware Alerts</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Alert ID</th><th>Time</th><th>Indicator</th><th>Severity</th><th>Path</th><th>Details</th></tr></thead>
+      <tbody>${(d.alerts||[]).map(a=>`
+        <tr>
+          <td style="font-family:monospace;font-size:11px;color:var(--accent)">${a.alert_id}</td>
+          <td style="color:var(--muted)">${a.time_str}</td>
+          <td style="font-weight:600;color:var(--orange)">${a.indicator}</td>
+          <td><span class="badge b-${a.severity}">${a.severity}</span></td>
+          <td style="font-family:monospace;font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis">${a.path}</td>
+          <td style="font-size:11px;color:var(--muted)">${a.details}</td>
+        </tr>`).join('')||'<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No ransomware alerts detected</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Detection Methods</div>
+    <div class="grid3" style="gap:12px">
+      ${[
+        ['File Entropy Analysis','Detects encrypted file content (entropy >7.2 bits)','var(--accent)'],
+        ['Mass Modification Rate','Alerts when >20 files/sec are modified','var(--yellow)'],
+        ['Extension Monitoring','Watches for ransomware file extensions (.wnry, .cerber, etc)','var(--orange)'],
+        ['Ransom Note Detection','Identifies ransom note filenames','var(--red)'],
+        ['Shadow Copy Deletion','Detects vssadmin/wbadmin abuse','var(--red)'],
+        ['Process Behaviour','Monitors suspicious process command lines','var(--orange)'],
+      ].map(([t,d,c])=>`
+        <div style="background:${c}10;border:1px solid ${c}25;border-radius:6px;padding:12px">
+          <div style="color:${c};font-size:11px;font-weight:700;margin-bottom:4px">${t}</div>
+          <div style="color:var(--muted);font-size:11px;line-height:1.5">${d}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+async function toggleRansomware(val) {
+  await apiFetch('/ransomware/toggle',{method:'POST',body:JSON.stringify({feature:'enabled',enabled:val})});
+  showPopup(`Ransomware monitor ${val?'enabled':'disabled'}`,'LOW');
+}
+
+// ════════════════════════════════════════════════
+// VIRUS / AV
+// ════════════════════════════════════════════════
+async function loadVirus() {
+  const d = await apiFetch('/virus/alerts?limit=50');
+  if (!d) return;
+  const p = document.getElementById('panel-virus');
+  const stats = d.stats||{};
+  p.innerHTML = `
+  <div class="row">
+    <div class="card"><div class="stat-val" style="color:var(--red)">${stats.total_alerts||0}</div><div class="stat-sub">Detections</div></div>
+    <div class="card"><div class="stat-val" style="color:var(--red)">${stats.critical_alerts||0}</div><div class="stat-sub">Critical</div></div>
+    ${S.role==='master'?`
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between">
+      <div><div class="toggle-label">AV Engine</div><div class="toggle-desc">Enable/disable virus scanning</div></div>
+      <label class="switch"><input type="checkbox" ${stats.enabled?'checked':''} onchange="toggleVirus(this.checked)"><span class="slider"></span></label>
+    </div>
+    <div class="card" style="display:flex;align-items:center;justify-content:center">
+      <button class="btn btn-primary" onclick="triggerScan()">Run Full Scan</button>
+    </div>`:''}
+  </div>
+  <div class="card">
+    <div class="card-title">Virus / Malware Detections</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Alert ID</th><th>Time</th><th>Method</th><th>Threat</th><th>Severity</th><th>File Path</th><th>Details</th></tr></thead>
+      <tbody>${(d.alerts||[]).map(a=>`
+        <tr>
+          <td style="font-family:monospace;font-size:11px;color:var(--accent)">${a.alert_id}</td>
+          <td style="color:var(--muted)">${a.time_str}</td>
+          <td style="font-weight:600;color:var(--yellow);font-size:11px">${a.detection_method}</td>
+          <td style="color:var(--orange);font-weight:600">${a.threat_name}</td>
+          <td><span class="badge b-${a.severity}">${a.severity}</span></td>
+          <td style="font-family:monospace;font-size:10px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.filepath}</td>
+          <td style="font-size:11px;color:var(--muted)">${a.details}</td>
+        </tr>`).join('')||'<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">No threats detected</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Detection Capabilities</div>
+    <div class="grid3" style="gap:12px">
+      ${[
+        ['Hash Reputation','MD5/SHA256 matching against malware database','var(--accent)'],
+        ['YARA Rules','Pattern-based detection for malware families','var(--yellow)'],
+        ['Process Monitor','Detects known malicious tools (mimikatz, etc)','var(--orange)'],
+        ['PowerShell Analysis','Detects encoded/obfuscated PowerShell','var(--orange)'],
+        ['C2 Communication','Detects command-and-control patterns','var(--red)'],
+        ['File Magic Bytes','Inspects file headers for suspicious types','var(--accent)'],
+      ].map(([t,d,c])=>`
+        <div style="background:${c}10;border:1px solid ${c}25;border-radius:6px;padding:12px">
+          <div style="color:${c};font-size:11px;font-weight:700;margin-bottom:4px">${t}</div>
+          <div style="color:var(--muted);font-size:11px;line-height:1.5">${d}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+async function toggleVirus(val) {
+  await apiFetch('/virus/toggle',{method:'POST',body:JSON.stringify({feature:'enabled',enabled:val})});
+  showPopup(`AV engine ${val?'enabled':'disabled'}`,'LOW');
+}
+async function triggerScan() {
+  await apiFetch('/virus/scan',{method:'POST'});
+  showPopup('Full scan initiated','LOW');
+}
+
+// ════════════════════════════════════════════════
+// ALERTS PANEL
+// ════════════════════════════════════════════════
+async function loadAlertsPanel() {
+  const d = await apiFetch('/alerts');
+  const p = document.getElementById('panel-alerts-panel');
+  p.innerHTML = `
+  <div class="grid2" style="margin-bottom:14px">
+  <div class="card">
+    <div class="card-title">Submit Alert to Master</div>
+    <div class="form-group"><label>Title</label><input id="alt-title" placeholder="Alert title"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Priority</label>
+        <select id="alt-priority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
+      </div>
+      <div class="form-group"><label>Target IP</label><input id="alt-ip" placeholder="e.g. 185.x.x.x"/></div>
+    </div>
+    <div class="form-group"><label>Attack Type</label><input id="alt-attack" placeholder="e.g. Port Scan"/></div>
+    <div class="form-group"><label>Description</label><textarea id="alt-desc" placeholder="Describe the threat…"></textarea></div>
+    <button class="btn btn-primary" onclick="submitAlert()">Submit Alert</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Alert Summary</div>
+    ${['OPEN','ACKNOWLEDGED','IN_PROGRESS','RESOLVED'].map(s=>{
+      const cnt = (d?.alerts||[]).filter(a=>a.status===s).length;
+      const cols = {OPEN:'var(--accent)',ACKNOWLEDGED:'var(--green)',IN_PROGRESS:'var(--yellow)',RESOLVED:'var(--muted)'};
+      return `<div class="toggle-row"><span style="color:${cols[s]};font-weight:600">${s}</span><span style="font-size:18px;font-weight:700;color:${cols[s]}">${cnt}</span></div>`;
+    }).join('')}
+  </div>
+  </div>
+  <div class="card">
+    <div class="card-title">All Alerts</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Status</th><th>Submitted By</th><th>Time</th><th>Target IP</th>${S.role==='master'?'<th>Actions</th>':''}</tr></thead>
+      <tbody>${(d?.alerts||[]).map(a=>`
+        <tr>
+          <td style="font-family:monospace;font-size:11px;color:var(--accent)">${a.alert_id}</td>
+          <td style="font-weight:600">${a.title}</td>
+          <td><span class="badge b-${a.priority}">${a.priority}</span></td>
+          <td><span class="badge b-${a.status}">${a.status}</span></td>
+          <td style="color:var(--muted)">${a.submitted_by}</td>
+          <td style="color:var(--muted);font-size:11px">${a.created_at}</td>
+          <td style="font-family:monospace;font-size:11px">${a.target_ip||'—'}</td>
+          ${S.role==='master'?`<td>
+            <button class="btn btn-success btn-sm" style="margin-right:4px" onclick="ackAlert('${a.alert_id}')">Ack</button>
+            <button class="btn btn-sm" style="background:var(--yellow);color:#000" onclick="resolveAlert('${a.alert_id}')">Resolve</button>
+          </td>`:''}
+        </tr>`).join('')||'<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No alerts</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+async function submitAlert() {
+  const title=document.getElementById('alt-title').value.trim();
+  const desc=document.getElementById('alt-desc').value.trim();
+  const priority=document.getElementById('alt-priority').value;
+  const ip=document.getElementById('alt-ip').value.trim();
+  const attack=document.getElementById('alt-attack').value.trim();
+  if (!title||!desc) return showPopup('Fill in title and description','MEDIUM');
+  const r=await apiFetch('/alerts/submit',{method:'POST',body:JSON.stringify({title,description:desc,priority,target_ip:ip,attack_type:attack})});
+  if (r) { showPopup(`Alert ${r.alert_id} submitted to master`,'LOW'); loadAlertsPanel(); }
+}
+
+async function ackAlert(id) {
+  const notes=prompt('Acknowledgement notes:','') || '';
+  const action=prompt('Action taken:','') || '';
+  await apiFetch(`/alerts/${id}/acknowledge`,{method:'POST',body:JSON.stringify({status:'ACKNOWLEDGED',notes,action})});
+  loadAlertsPanel();
+}
+async function resolveAlert(id) {
+  await apiFetch(`/alerts/${id}/update`,{method:'POST',body:JSON.stringify({status:'RESOLVED',notes:'Resolved by master'})});
+  loadAlertsPanel();
+}
+
+// ════════════════════════════════════════════════
+// REPORTS PANEL
+// ════════════════════════════════════════════════
+async function loadReportsPanel() {
+  const d = await apiFetch('/reports');
+  const p = document.getElementById('panel-reports-panel');
+  p.innerHTML = `
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">Submit Formal Report</div>
+    <div class="form-row">
+      <div class="form-group"><label>Report Title</label><input id="rpt-title" placeholder="Report title"/></div>
+      <div class="form-group"><label>Severity</label>
+        <select id="rpt-sev"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Summary</label><textarea id="rpt-summary" placeholder="Executive summary of findings…"></textarea></div>
+    <div class="form-group"><label>Findings</label><textarea id="rpt-findings" placeholder="Detailed technical findings…"></textarea></div>
+    <div class="form-group"><label>Recommendations</label><textarea id="rpt-recs" placeholder="Recommended actions…"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Affected IPs (comma-separated)</label><input id="rpt-ips" placeholder="185.x.x.x, 45.x.x.x"/></div>
+    </div>
+    <button class="btn btn-primary" onclick="submitReport()">Submit Report</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Submitted Reports</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ID</th><th>Title</th><th>Severity</th><th>Status</th><th>Submitted By</th><th>Submitted At</th>${S.role==='master'?'<th>Actions</th>':''}</tr></thead>
+      <tbody>${(d?.reports||[]).map(r=>`
+        <tr>
+          <td style="font-family:monospace;font-size:11px;color:var(--accent)">${r.report_id}</td>
+          <td style="font-weight:600">${r.title}</td>
+          <td><span class="badge b-${r.severity}">${r.severity}</span></td>
+          <td><span class="badge b-OPEN">${r.status}</span></td>
+          <td style="color:var(--muted)">${r.submitted_by}</td>
+          <td style="color:var(--muted);font-size:11px">${r.created_at}</td>
+          ${S.role==='master'?`<td>
+            <button class="btn btn-success btn-sm" onclick="acceptReport('${r.report_id}')">Accept</button>
+            <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="rejectReport('${r.report_id}')">Reject</button>
+          </td>`:''}
+        </tr>`).join('')||'<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">No reports submitted</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+async function submitReport() {
+  const title=document.getElementById('rpt-title').value.trim();
+  const summary=document.getElementById('rpt-summary').value.trim();
+  const findings=document.getElementById('rpt-findings').value.trim();
+  const recs=document.getElementById('rpt-recs').value.trim();
+  const sev=document.getElementById('rpt-sev').value;
+  const ips=document.getElementById('rpt-ips').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!title||!summary) return showPopup('Fill in title and summary','MEDIUM');
+  const r=await apiFetch('/reports/submit',{method:'POST',body:JSON.stringify({title,summary,findings,recommendations:recs,severity:sev,affected_ips:ips})});
+  if (r) { showPopup(`Report ${r.report_id} submitted`,'LOW'); loadReportsPanel(); }
+}
+
+async function acceptReport(id) {
+  const notes=prompt('Review notes:','') || 'Accepted';
+  await apiFetch(`/reports/${id}/review`,{method:'POST',body:JSON.stringify({status:'ACCEPTED',notes})});
+  loadReportsPanel();
+}
+async function rejectReport(id) {
+  const notes=prompt('Reason for rejection:','') || '';
+  await apiFetch(`/reports/${id}/review`,{method:'POST',body:JSON.stringify({status:'REJECTED',notes})});
+  loadReportsPanel();
+}
+
+// ════════════════════════════════════════════════
+// USERS (Master only)
+// ════════════════════════════════════════════════
+async function loadUsers() {
+  if (S.role!=='master') return;
+  const [users, history] = await Promise.all([
+    apiFetch('/master/users'),
+    apiFetch('/master/login-history?limit=30'),
+  ]);
+  const p = document.getElementById('panel-users');
+  p.innerHTML = `
+  <div class="grid2" style="margin-bottom:14px">
+  <div class="card">
+    <div class="card-title">System Users</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th></tr></thead>
+      <tbody>${(users?.users||[]).map(u=>`
+        <tr>
+          <td style="font-weight:600">${u.username}</td>
+          <td style="color:var(--muted)">${u.full_name||'—'}</td>
+          <td><span class="role-${u.role}">${u.role.toUpperCase()}</span></td>
+          <td><span class="badge ${u.is_active?'b-LOW':'b-CRITICAL'}">${u.is_active?'ACTIVE':'INACTIVE'}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div class="sep"></div>
+    <div class="card-title">Create User</div>
+    <div class="form-row">
+      <div class="form-group"><label>Username</label><input id="nu-user" placeholder="username"/></div>
+      <div class="form-group"><label>Password</label><input type="password" id="nu-pass" placeholder="password"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Full Name</label><input id="nu-name" placeholder="Full Name"/></div>
+      <div class="form-group"><label>Role</label><select id="nu-role"><option value="analyst">Analyst</option><option value="master">Master</option></select></div>
+    </div>
+    <button class="btn btn-primary" onclick="createUser()">Create User</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Active Sessions</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>User</th><th>Role</th><th>IP</th><th>Login Time</th><th>Duration</th></tr></thead>
+      <tbody>${(history?.active||[]).map(s=>`
+        <tr>
+          <td style="font-weight:600">${s.username}</td>
+          <td><span class="role-${s.role}">${s.role.toUpperCase()}</span></td>
+          <td style="font-family:monospace;font-size:11px">${s.ip_address}</td>
+          <td style="color:var(--muted);font-size:11px">${s.login_time}</td>
+          <td style="font-family:monospace;color:var(--accent)">${s.duration}</td>
+        </tr>`).join('')||'<tr><td colspan="5" style="color:var(--muted);text-align:center">No active sessions</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Login History</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>User</th><th>Role</th><th>IP</th><th>Time</th><th>Result</th><th>Duration</th></tr></thead>
+      <tbody>${(history?.history||[]).map(h=>`
+        <tr>
+          <td style="font-weight:600">${h.username}</td>
+          <td><span class="role-${h.role}">${(h.role||'unknown').toUpperCase()}</span></td>
+          <td style="font-family:monospace;font-size:11px">${h.ip_address}</td>
+          <td style="color:var(--muted);font-size:11px">${h.login_time}</td>
+          <td><span class="badge ${h.success?'b-LOW':'b-CRITICAL'}">${h.success?'SUCCESS':'FAILED'}</span></td>
+          <td style="font-family:monospace;font-size:11px;color:${h.active?'var(--green)':'var(--muted)'}">${h.duration}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+async function createUser() {
+  const username=document.getElementById('nu-user').value.trim();
+  const password=document.getElementById('nu-pass').value.trim();
+  const full_name=document.getElementById('nu-name').value.trim();
+  const role=document.getElementById('nu-role').value;
+  if (!username||!password) return showPopup('Username and password required','MEDIUM');
+  const r=await apiFetch('/master/users',{method:'POST',body:JSON.stringify({username,password,role,full_name})});
+  if (r) { showPopup(`User ${username} created`,'LOW'); loadUsers(); }
+}
+
+// ════════════════════════════════════════════════
+// NOTIFICATIONS
+// ════════════════════════════════════════════════
+function openNotifications() {
+  apiFetch('/notifications').then(d=>{
+    if (!d) return;
+    const c = d.notifications.length;
+    if (!c) return showPopup('No notifications','LOW');
+    d.notifications.slice(0,5).forEach(n=>{
+      showPopup(n.message, n.type==='RANSOMWARE'||n.type==='VIRUS'?'CRITICAL':'MEDIUM', n.type);
+    });
+    apiFetch('/notifications/mark-read',{method:'POST'});
+    document.getElementById('notif-count').style.display='none';
+  });
+}
+
+// ════════════════════════════════════════════════
+// POPUP SYSTEM
+// ════════════════════════════════════════════════
+const _shownPopups = new Set();
+function showPopup(msg, level='LOW', type='') {
+  const key = `${msg}-${level}`;
+  if (_shownPopups.has(key)) return;
+  _shownPopups.add(key);
+  setTimeout(()=>_shownPopups.delete(key), 5000);
+
+  const cls = level==='CRITICAL'?'critical':level==='HIGH'?'high':level==='MEDIUM'?'medium':'';
+  const id = 'popup-'+Date.now();
+  const container = document.getElementById('popup-container');
+  const el = document.createElement('div');
+  el.className = `popup ${cls}`; el.id = id;
+  const typeLabel = type ? `<span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em">[${type}] </span>` : '';
+  el.innerHTML = `
+    <button class="popup-close" onclick="document.getElementById('${id}').remove()">×</button>
+    <div class="popup-title">${typeLabel}${level} Alert</div>
+    <div class="popup-msg">${msg}</div>
+    ${(level==='HIGH'||level==='CRITICAL') && S.role==='master' ? `
+    <div class="popup-actions">
+      <button class="btn btn-sm btn-danger" onclick="document.getElementById('${id}').remove()">Dismiss</button>
+      <button class="btn btn-sm btn-primary" onclick="switchTab('firewall');document.getElementById('${id}').remove()">Open Firewall</button>
+    </div>` : ''}`;
+  container.appendChild(el);
+  setTimeout(()=>el.remove(), 8000);
+}
+
+// ════════════════════════════════════════════════
+// REPORT DOWNLOAD
+// ════════════════════════════════════════════════
+async function dlReport() {
+  const res = await fetch('/api/download-report', { headers: hdrs() });
+  if (!res.ok) return showPopup('Report generation failed','MEDIUM');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url;
+  a.download=`AHRAS_Report_${new Date().toISOString().slice(0,10)}.html`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ════════════════════════════════════════════════
+// CORRELATION PANEL
+// ════════════════════════════════════════════════
+async function loadCorrelation() {
+  const p = document.getElementById('panel-correlation');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading correlation incidents...</div>`;
+  const res = await apiFetch('/correlation/incidents?limit=100');
+  if (!res) return;
+  const {incidents=[],stats={}} = res;
+  const unacked = incidents.filter(i=>!i.acknowledged);
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Total Incidents', stats.total_incidents||0, 'var(--accent)')}
+    ${metricCard('Unacknowledged', stats.unacknowledged||0, 'var(--red)')}
+    ${metricCard('Rules Loaded', stats.rules_loaded||0, 'var(--green)')}
+    ${metricCard('Total Fired', stats.total_fired||0, 'var(--yellow)')}
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Correlated Incidents — Multi-Stage Attack Chains</div>
+    <table class="tbl"><thead><tr>
+      <th>ID</th><th>Rule</th><th>Source IP</th><th>MITRE</th>
+      <th>Severity</th><th>Confidence</th><th>Events</th><th>Time</th><th>Status</th><th>Action</th>
+    </tr></thead><tbody>
+    ${incidents.length===0?'<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">No correlated incidents detected</td></tr>':
+      incidents.map(i=>`<tr style="${!i.acknowledged?'background:#f8514908':''}">
+        <td><code style="font-size:10px;color:var(--accent)">${i.incident_id}</code></td>
+        <td><strong>${i.rule_name}</strong><br><span style="font-size:10px;color:var(--muted)">${i.description}</span></td>
+        <td><code>${i.src_ip}</code></td>
+        <td><a href="https://attack.mitre.org/techniques/${i.mitre_technique.split('→')[0].trim()}/" target="_blank"
+              style="color:var(--accent);font-size:10px;font-family:monospace">${i.mitre_technique}</a></td>
+        <td><span class="badge sev-${i.severity}">${i.severity}</span></td>
+        <td><div style="width:80px;background:var(--border);border-radius:4px;height:6px">
+              <div style="width:${Math.round(i.confidence*100)}%;background:var(--accent);height:6px;border-radius:4px"></div>
+            </div><span style="font-size:10px;color:var(--muted)">${Math.round(i.confidence*100)}%</span></td>
+        <td><span style="font-size:11px">${i.event_count}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${i.created_at}</td>
+        <td>${i.acknowledged?'<span style="color:var(--green);font-size:10px">✓ ACK</span>':'<span style="color:var(--red);font-size:10px">● OPEN</span>'}</td>
+        <td>
+          ${!i.acknowledged && S.role==='master' ? `<button class="btn btn-sm btn-primary" onclick="ackIncident('${i.incident_id}')">Ack</button>` : ''}
+          <button class="btn btn-sm" onclick="openCaseFromIncident(${JSON.stringify(i).replace(/"/g,'&quot;')})">Case</button>
+          <a href="/api/download-report/incident/${i.incident_id}" target="_blank" class="btn btn-sm">DL</a>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+async function ackIncident(id) {
+  await apiFetch(`/correlation/incidents/${id}/acknowledge`, {method:'POST'});
+  loadCorrelation();
+}
+
+async function openCaseFromIncident(inc) {
+  const body = {
+    title: `[AUTO] ${inc.rule_name} from ${inc.src_ip}`,
+    description: `${inc.description}\n\nSource IP: ${inc.src_ip}\nMITRE: ${inc.mitre_technique}\nConfidence: ${Math.round(inc.confidence*100)}%`,
+    priority: 'HIGH', attack_type: inc.attack_types?.[0]||'',
+    affected_ips: [inc.src_ip], mitre_technique: inc.mitre_technique,
+  };
+  const r = await apiFetch('/cases', {method:'POST',body:JSON.stringify(body)});
+  if (r) { showPopup(`Case ${r.case_id} created`,'LOW'); switchTab('cases'); }
+}
+
+function metricCard(label, value, color) {
+  return `<div class="card" style="flex:1;text-align:center;padding:20px">
+    <div style="font-size:32px;font-weight:800;color:${color}">${value}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em">${label}</div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// THREAT HUNTING PANEL
+// ════════════════════════════════════════════════
+function loadHunt() {
+  const p = document.getElementById('panel-hunt');
+  p.innerHTML = `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:16px">Threat Hunting — Search Live Event Data</div>
+    <div class="row" style="gap:10px;align-items:flex-end">
+      <div style="flex:2">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Query</label>
+        <input id="hunt-query" class="inp" placeholder="e.g. 192.168.1.1 or Port Scan or CRITICAL" onkeydown="if(event.key==='Enter')runHunt()">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Type</label>
+        <select id="hunt-type" class="inp">
+          <option value="ip">IP Address</option>
+          <option value="attack_type">Attack Type</option>
+          <option value="country">Country</option>
+          <option value="protocol">Protocol</option>
+          <option value="severity">Severity</option>
+          <option value="port">Port</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="runHunt()">Hunt</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      ${['Port Scan','SSH Bruteforce','DNS Tunneling','Beaconing','Lateral Movement','Data Exfiltration','CRITICAL','192.168']
+        .map(q=>`<button class="btn btn-sm btn-secondary" onclick="quickHunt('${q}')">${q}</button>`).join('')}
+    </div>
+  </div>
+  <div id="hunt-results"><div style="text-align:center;color:var(--muted);padding:40px">Enter a query above to search through live events</div></div>`;
+}
+
+function quickHunt(q) {
+  document.getElementById('hunt-query').value = q;
+  if (['CRITICAL','HIGH','MEDIUM','LOW'].includes(q)) document.getElementById('hunt-type').value = 'severity';
+  else if (q.match(/^\d+$/)) document.getElementById('hunt-type').value = 'port';
+  else if (q.match(/^\d+\.\d+/)) document.getElementById('hunt-type').value = 'ip';
+  else document.getElementById('hunt-type').value = 'attack_type';
+  runHunt();
+}
+
+async function runHunt() {
+  const q = document.getElementById('hunt-query').value.trim();
+  const t = document.getElementById('hunt-type').value;
+  if (!q) return;
+  const r = document.getElementById('hunt-results');
+  r.innerHTML = `<div style="text-align:center;color:var(--muted);padding:24px">Hunting...</div>`;
+  const res = await apiFetch('/hunt', {method:'POST', body:JSON.stringify({query:q,query_type:t})});
+  if (!res) return;
+  const {results=[], result_count=0, total_searched=0} = res;
+  r.innerHTML = `
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">
+      Results: <strong style="color:var(--accent)">${result_count}</strong> matches
+      <span style="color:var(--muted);font-size:11px"> from ${total_searched} events</span>
+    </div>
+    <table class="tbl"><thead><tr>
+      <th>Time</th><th>Source IP</th><th>Dst IP</th><th>Attack Type</th>
+      <th>Severity</th><th>MITRE</th><th>Country</th><th>Risk</th>
+    </tr></thead><tbody>
+    ${results.length===0?'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No matches found</td></tr>':
+      results.map(e=>`<tr>
+        <td style="font-size:10px;color:var(--muted)">${e.timestamp_str||''}</td>
+        <td><code>${e.src_ip||''}</code></td>
+        <td><code style="font-size:10px">${e.dst_ip||''}</code></td>
+        <td><strong>${e.attack_type||'Normal'}</strong></td>
+        <td><span class="badge sev-${e.severity||'LOW'}">${e.severity||'LOW'}</span></td>
+        <td style="font-size:10px;color:var(--accent);font-family:monospace">
+          ${e.mitre_technique?`<a href="https://attack.mitre.org/techniques/${e.mitre_technique}/" target="_blank" style="color:var(--accent)">${e.mitre_technique}</a> ${e.mitre_tactic||''}`:'-'}
+        </td>
+        <td style="font-size:11px">${e.country||'-'}</td>
+        <td style="font-size:11px">${typeof e.risk_score!=='undefined'?e.risk_score.toFixed(1):'-'}</td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// FORENSICS PANEL
+// ════════════════════════════════════════════════
+function loadForensics() {
+  const p = document.getElementById('panel-forensics');
+  p.innerHTML = `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:14px">Forensics — Incident Investigation</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <input id="fc-id" class="inp" placeholder="Case ID (e.g. INC-001)" style="flex:1;min-width:140px">
+      <input id="fc-title" class="inp" placeholder="Case Title" style="flex:2;min-width:200px">
+      <button class="btn btn-primary" onclick="createForensicCase()">New Case</button>
+      <button class="btn btn-secondary" onclick="loadForensicCases()">Refresh</button>
+    </div>
+  </div>
+  <div id="forensic-cases-list"><div style="text-align:center;color:var(--muted);padding:32px">Loading cases...</div></div>
+  <div id="forensic-case-detail" style="margin-top:16px"></div>`;
+  loadForensicCases();
+}
+
+async function loadForensicCases() {
+  const res = await apiFetch('/forensics/cases');
+  if (!res) return;
+  const cases = res.cases || [];
+  const el = document.getElementById('forensic-cases-list');
+  if (!cases.length) { el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);padding:24px">No forensic cases yet. Create one above.</div>`; return; }
+  el.innerHTML = `<div class="card"><div class="card-title" style="margin-bottom:10px">Cases (${cases.length})</div>
+  <table class="tbl"><thead><tr><th>Case ID</th><th>Title</th><th>Analyst</th><th>Status</th><th>Evidence</th><th>Timeline</th><th>Notes</th><th>Created</th><th>Actions</th></tr></thead><tbody>
+  ${cases.map(c=>`<tr>
+    <td><code style="color:var(--accent)">${c.case_id}</code></td>
+    <td>${c.title}</td><td>${c.analyst||'-'}</td>
+    <td><span class="badge" style="background:${c.status==='OPEN'?'var(--warn)':c.status==='CLOSED'?'var(--ok)':'var(--accent)'}">${c.status}</span></td>
+    <td style="text-align:center">${c.evidence_count}</td>
+    <td style="text-align:center">${c.timeline_count}</td>
+    <td style="text-align:center">${c.note_count}</td>
+    <td style="font-size:10px;color:var(--muted)">${(c.created_at||'').slice(0,16)}</td>
+    <td><button class="btn btn-sm btn-secondary" onclick="openForensicCase('${c.case_id}')">Open</button></td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+async function createForensicCase() {
+  const id = document.getElementById('fc-id').value.trim();
+  const title = document.getElementById('fc-title').value.trim();
+  if (!id || !title) { alert('Case ID and Title are required'); return; }
+  const res = await apiFetch('/forensics/cases', {method:'POST', body:JSON.stringify({case_id:id, title})});
+  if (res) { document.getElementById('fc-id').value=''; document.getElementById('fc-title').value=''; loadForensicCases(); }
+}
+
+async function openForensicCase(caseId) {
+  const [caseRes, evRes, tlRes, noteRes] = await Promise.all([
+    apiFetch(`/forensics/cases/${caseId}`),
+    apiFetch(`/forensics/cases/${caseId}/evidence`),
+    apiFetch(`/forensics/cases/${caseId}/timeline`),
+    apiFetch(`/forensics/cases/${caseId}/notes`),
+  ]);
+  if (!caseRes) return;
+  const evidence = evRes?.evidence || [];
+  const timeline = tlRes?.timeline || [];
+  const notes = noteRes?.notes || [];
+  const d = document.getElementById('forensic-case-detail');
+  d.innerHTML = `
+  <div class="card" style="border:1px solid var(--accent)">
+    <div class="card-title" style="margin-bottom:12px">📂 ${caseRes.case_id} — ${caseRes.title}
+      <span class="badge" style="margin-left:8px;background:var(--accent)">${caseRes.status}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      <!-- Evidence -->
+      <div>
+        <div style="font-weight:600;margin-bottom:8px;color:var(--accent)">Evidence (${evidence.length})</div>
+        <div style="font-size:11px;margin-bottom:8px;display:flex;gap:4px;flex-wrap:wrap">
+          <input id="ev-title" class="inp" placeholder="Title" style="flex:2">
+          <input id="ev-data" class="inp" placeholder="Data/Value" style="flex:2">
+          <select id="ev-type" class="inp" style="flex:1">
+            <option value="malicious_ip">IP</option><option value="file_hash">Hash</option>
+            <option value="log_entry">Log</option><option value="screenshot">Screenshot</option>
+            <option value="file_artifact">File</option><option value="other">Other</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="addEvidence('${caseId}')">Add</button>
+        </div>
+        ${evidence.map(e=>`<div style="background:var(--bg2);padding:8px;border-radius:6px;margin-bottom:6px;font-size:11px">
+          <span style="color:var(--accent)">[${e.ev_type}]</span> <strong>${e.title}</strong><br>
+          <code style="font-size:10px">${e.data.slice(0,80)}${e.data.length>80?'...':''}</code>
+          <div style="color:var(--muted);font-size:10px">${e.collected_at} by ${e.collected_by}</div>
+        </div>`).join('') || '<div style="color:var(--muted);font-size:11px">No evidence yet</div>'}
+      </div>
+      <!-- Timeline -->
+      <div>
+        <div style="font-weight:600;margin-bottom:8px;color:var(--accent)">Timeline (${timeline.length})</div>
+        <div style="font-size:11px;margin-bottom:8px;display:flex;gap:4px;flex-wrap:wrap">
+          <input id="tl-ts" class="inp" placeholder="Timestamp (2024-01-01T10:00:00)" style="flex:3">
+          <input id="tl-actor" class="inp" placeholder="Actor" style="flex:1">
+          <input id="tl-action" class="inp" placeholder="Action" style="flex:1">
+          <input id="tl-target" class="inp" placeholder="Target" style="flex:1">
+          <input id="tl-desc" class="inp" placeholder="Description" style="flex:3">
+          <button class="btn btn-sm btn-primary" onclick="addTimelineEvent('${caseId}')">Add</button>
+        </div>
+        ${timeline.map(e=>`<div style="background:var(--bg2);padding:8px;border-radius:6px;margin-bottom:6px;font-size:11px;border-left:3px solid ${e.severity==='CRITICAL'?'var(--crit)':e.severity==='HIGH'?'var(--high)':'var(--accent)'}">
+          <div style="color:var(--muted);font-size:10px">${e.timestamp}</div>
+          <strong>${e.actor}</strong> → <strong>${e.action}</strong> on <strong>${e.target}</strong>
+          <div>${e.description}</div>
+          ${e.mitre_technique?`<code style="font-size:10px;color:var(--accent)">${e.mitre_technique}</code>`:''}
+        </div>`).join('') || '<div style="color:var(--muted);font-size:11px">No timeline events yet</div>'}
+      </div>
+      <!-- Notes -->
+      <div>
+        <div style="font-weight:600;margin-bottom:8px;color:var(--accent)">Notes (${notes.length})</div>
+        <div style="font-size:11px;margin-bottom:8px;display:flex;flex-direction:column;gap:4px">
+          <input id="note-title" class="inp" placeholder="Note title">
+          <textarea id="note-body" class="inp" rows="3" placeholder="Investigation notes..." style="font-size:11px;resize:vertical"></textarea>
+          <button class="btn btn-sm btn-primary" onclick="addNote('${caseId}')">Add Note</button>
+        </div>
+        ${notes.map(n=>`<div style="background:var(--bg2);padding:8px;border-radius:6px;margin-bottom:6px;font-size:11px">
+          <strong>${n.title}</strong>
+          <div style="margin-top:4px">${n.body}</div>
+          <div style="color:var(--muted);font-size:10px;margin-top:4px">${n.created_at} — ${n.author}</div>
+        </div>`).join('') || '<div style="color:var(--muted);font-size:11px">No notes yet</div>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function addEvidence(caseId) {
+  const title = document.getElementById('ev-title').value.trim();
+  const data = document.getElementById('ev-data').value.trim();
+  const ev_type = document.getElementById('ev-type').value;
+  if (!title || !data) { alert('Title and data are required'); return; }
+  await apiFetch(`/forensics/cases/${caseId}/evidence`, {method:'POST',
+    body:JSON.stringify({ev_type, title, description:title, data, source:'analyst'})});
+  openForensicCase(caseId);
+}
+
+async function addTimelineEvent(caseId) {
+  const timestamp = document.getElementById('tl-ts').value.trim() || new Date().toISOString();
+  const actor = document.getElementById('tl-actor').value.trim();
+  const action = document.getElementById('tl-action').value.trim();
+  const target = document.getElementById('tl-target').value.trim();
+  const description = document.getElementById('tl-desc').value.trim();
+  if (!actor || !action) { alert('Actor and action are required'); return; }
+  await apiFetch(`/forensics/cases/${caseId}/timeline`, {method:'POST',
+    body:JSON.stringify({timestamp, actor, action, target, description})});
+  openForensicCase(caseId);
+}
+
+async function addNote(caseId) {
+  const title = document.getElementById('note-title').value.trim();
+  const body = document.getElementById('note-body').value.trim();
+  if (!title || !body) { alert('Title and body are required'); return; }
+  await apiFetch(`/forensics/cases/${caseId}/notes`, {method:'POST',
+    body:JSON.stringify({title, body})});
+  openForensicCase(caseId);
+}
+
+// ════════════════════════════════════════════════
+// RISK EXPLAINER PANEL
+// ════════════════════════════════════════════════
+function loadRiskExplain() {
+  const p = document.getElementById('panel-risk-explain');
+  p.innerHTML = `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:14px">Risk Explainer — Why Is The Score What It Is?</div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:14px">
+      Enter a source IP to see a full breakdown of every factor driving its risk score. This is the research feature — most systems show only a number; AHRAS explains each component.
+    </div>
+    <div class="row" style="gap:10px;align-items:flex-end">
+      <input id="re-ip" class="inp" placeholder="Source IP (e.g. 192.168.1.100)" style="flex:2"
+             onkeydown="if(event.key==='Enter')explainRisk()">
+      <button class="btn btn-primary" onclick="explainRisk()">Explain Risk</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      ${['10.0.0.1','192.168.1.100','172.16.0.50'].map(ip=>
+        `<button class="btn btn-sm btn-secondary" onclick="document.getElementById('re-ip').value='${ip}';explainRisk()">${ip}</button>`
+      ).join('')}
+    </div>
+  </div>
+  <div id="risk-explain-result"></div>`;
+}
+
+async function explainRisk() {
+  const ip = document.getElementById('re-ip').value.trim();
+  if (!ip) return;
+  const el = document.getElementById('risk-explain-result');
+  el.innerHTML = `<div style="text-align:center;color:var(--muted);padding:24px">Analysing ${ip}...</div>`;
+  const res = await apiFetch(`/risk/explain/${ip}`);
+  if (!res) return;
+  const {final_score, severity, components=[], adjustments=[], verdict, recommendations=[]} = res;
+  const sevColor = severity==='CRITICAL'?'var(--crit)':severity==='HIGH'?'var(--high)':severity==='MEDIUM'?'var(--warn)':'var(--ok)';
+  el.innerHTML = `
+  <div class="card" style="border:2px solid ${sevColor}">
+    <div class="row" style="align-items:center;gap:16px;margin-bottom:20px">
+      <div style="font-size:52px;font-weight:800;color:${sevColor}">${final_score}</div>
+      <div>
+        <div style="font-size:20px;font-weight:700;color:${sevColor}">${severity}</div>
+        <div style="font-size:12px;color:var(--muted)">Risk Score for ${ip}</div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);padding:12px;border-radius:8px;margin-bottom:20px;font-size:13px">${verdict}</div>
+
+    <div class="card-title" style="margin-bottom:12px">Score Breakdown</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+    ${components.map(c=>{
+      const pct = Math.round((c.contribution/c.weight)*100);
+      const barW = Math.max(2, Math.round(c.contribution));
+      const cColor = pct>=70?'var(--crit)':pct>=40?'var(--high)':pct>=15?'var(--warn)':'var(--ok)';
+      return `<div>
+        <div class="row" style="justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">${c.label}</span>
+          <span style="font-size:13px;font-weight:800;color:${cColor}">${c.contribution.toFixed(1)} / ${c.weight} pts</span>
+        </div>
+        <div style="background:var(--bg2);border-radius:4px;height:8px;overflow:hidden">
+          <div style="width:${barW}%;height:100%;background:${cColor};border-radius:4px;transition:width 0.4s"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${c.reason}</div>
+        <div style="font-size:10px;color:var(--muted)">${c.detail}</div>
+      </div>`;
+    }).join('')}
+    </div>
+
+    ${adjustments.length?`
+    <div class="card-title" style="margin-bottom:8px">Adjustments Applied</div>
+    <div style="margin-bottom:20px">
+    ${adjustments.map(a=>`<div style="font-size:12px;padding:6px 10px;background:var(--bg2);border-radius:6px;margin-bottom:6px">
+      <strong>${a.label}</strong>: <span style="color:${a.value>=0?'var(--crit)':'var(--ok)'}">${a.value>=0?'+':''}${a.value} pts</span>
+      <div style="color:var(--muted);font-size:11px">${a.reason}</div>
+    </div>`).join('')}
+    </div>`:''}
+
+    <div class="card-title" style="margin-bottom:8px">Recommendations</div>
+    <div>
+    ${recommendations.map((r,i)=>`<div style="font-size:12px;padding:6px 10px;background:var(--bg2);border-radius:6px;margin-bottom:6px">
+      <span style="color:var(--accent);font-weight:700">${i+1}.</span> ${r}
+    </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// IOC MANAGEMENT PANEL
+// ════════════════════════════════════════════════
+async function loadIOC() {
+  const p = document.getElementById('panel-ioc');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading IOCs...</div>`;
+  const res = await apiFetch('/ioc');
+  if (!res) return;
+  const {iocs=[], stats={}} = res;
+  const byType = stats.by_type||{};
+  const byLevel = stats.by_level||{};
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Total IOCs', stats.total||0, 'var(--accent)')}
+    ${metricCard('IPs', byType.ip||0, 'var(--red)')}
+    ${metricCard('Domains', byType.domain||0, 'var(--orange)')}
+    ${metricCard('Hashes', byType.hash||0, 'var(--yellow)')}
+    ${metricCard('Total Hits', stats.total_hits||0, 'var(--green)')}
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:12px">➕ Add IOC</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <input id="ioc-indicator" class="inp" placeholder="IP / Domain / Hash / URL / Email" style="flex:3;min-width:180px">
+      <select id="ioc-type" class="inp" style="flex:1;min-width:100px">
+        <option value="ip">IP</option><option value="domain">Domain</option>
+        <option value="hash">Hash</option><option value="url">URL</option><option value="email">Email</option>
+      </select>
+      <select id="ioc-level" class="inp" style="flex:1;min-width:110px">
+        <option value="low">Low</option><option value="medium">Medium</option>
+        <option value="high">High</option><option value="critical">Critical</option>
+      </select>
+      <input id="ioc-desc" class="inp" placeholder="Description" style="flex:2;min-width:150px">
+      <input id="ioc-source" class="inp" placeholder="Source" style="flex:1;min-width:100px">
+      <button class="btn btn-primary" onclick="addIOC()">Add IOC</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">IOC Database (${iocs.length})</div>
+    <table class="tbl"><thead><tr>
+      <th>Indicator</th><th>Type</th><th>Threat Level</th><th>Description</th>
+      <th>Source</th><th>Hits</th><th>Last Seen</th>
+      ${S.role==='master'?'<th>Action</th>':''}
+    </tr></thead><tbody>
+    ${iocs.length===0?'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No IOCs</td></tr>':
+      iocs.map(i=>`<tr>
+        <td><code style="font-family:monospace;font-size:11px">${i.indicator}</code></td>
+        <td><span class="badge" style="background:var(--card);color:var(--accent);border:1px solid var(--accent)30">${i.ioc_type.toUpperCase()}</span></td>
+        <td><span class="badge sev-${i.threat_level.toUpperCase()}">${i.threat_level.toUpperCase()}</span></td>
+        <td style="max-width:200px;font-size:11px">${i.description}</td>
+        <td style="font-size:10px;color:var(--muted)">${i.source}</td>
+        <td><strong style="color:${i.hit_count>0?'var(--red)':'var(--muted)'}">${i.hit_count}</strong></td>
+        <td style="font-size:10px;color:var(--muted)">${i.last_seen}</td>
+        ${S.role==='master'?`<td><button class="btn btn-sm btn-danger" onclick="deleteIOC('${i.ioc_id}')">Del</button></td>`:''}
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+async function addIOC() {
+  const body = {
+    indicator: document.getElementById('ioc-indicator').value.trim(),
+    ioc_type: document.getElementById('ioc-type').value,
+    threat_level: document.getElementById('ioc-level').value,
+    description: document.getElementById('ioc-desc').value.trim() || 'Manual IOC',
+    source: document.getElementById('ioc-source').value.trim() || 'manual',
+  };
+  if (!body.indicator) return;
+  const r = await apiFetch('/ioc', {method:'POST', body:JSON.stringify(body)});
+  if (r) { showPopup(`IOC added: ${body.indicator}`, 'LOW'); loadIOC(); }
+}
+
+async function deleteIOC(id) {
+  if (!confirm('Delete this IOC?')) return;
+  await apiFetch(`/ioc/${id}`, {method:'DELETE'});
+  loadIOC();
+}
+
+// ════════════════════════════════════════════════
+// CASE MANAGEMENT PANEL
+// ════════════════════════════════════════════════
+let _caseFilter = null;
+async function loadCases() {
+  const p = document.getElementById('panel-cases');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading cases...</div>`;
+  const url = '/cases?limit=100' + (_caseFilter?`&status=${_caseFilter}`:'');
+  const res = await apiFetch(url);
+  if (!res) return;
+  const {cases=[], stats={}} = res;
+  const byStatus = stats.by_status||{};
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Total', stats.total||0, 'var(--accent)')}
+    ${metricCard('Open', byStatus.OPEN||0, 'var(--red)')}
+    ${metricCard('In Progress', (byStatus.ASSIGNED||0)+(byStatus.IN_INVESTIGATION||0), 'var(--yellow)')}
+    ${metricCard('SLA Breached', stats.sla_breached||0, 'var(--orange)')}
+    ${metricCard('Closed', byStatus.CLOSED||0, 'var(--green)')}
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:12px">➕ Create Case</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <input id="case-title" class="inp" placeholder="Case Title" style="flex:3;min-width:200px">
+      <input id="case-desc" class="inp" placeholder="Description" style="flex:3;min-width:200px">
+      <select id="case-priority" class="inp" style="flex:1;min-width:100px">
+        <option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option>
+        <option value="HIGH">High</option><option value="CRITICAL">Critical</option>
+      </select>
+      <input id="case-ip" class="inp" placeholder="Affected IP (optional)" style="flex:1;min-width:130px">
+      <button class="btn btn-primary" onclick="createCase()">Create Case</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">
+      Cases
+      <span style="margin-left:16px">
+        ${['','OPEN','ASSIGNED','IN_INVESTIGATION','PENDING_CLOSURE','CLOSED'].map(s=>
+          `<button class="btn btn-sm ${_caseFilter===s?'btn-primary':'btn-secondary'}" onclick="_caseFilter='${s}';loadCases()">${s||'All'}</button>`).join(' ')}
+      </span>
+    </div>
+    <table class="tbl"><thead><tr>
+      <th>ID</th><th>Title</th><th>Priority</th><th>Status</th>
+      <th>MITRE</th><th>Assigned</th><th>Age</th><th>SLA</th><th>Notes</th><th>Actions</th>
+    </tr></thead><tbody>
+    ${cases.length===0?'<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No cases found</td></tr>':
+      cases.map(c=>`<tr>
+        <td><code style="font-size:10px;color:var(--accent)">${c.case_id}</code></td>
+        <td><strong>${c.title}</strong><br><span style="font-size:10px;color:var(--muted)">${c.description.slice(0,60)}...</span></td>
+        <td><span class="badge sev-${c.priority}">${c.priority}</span></td>
+        <td><span class="badge" style="background:var(--card);color:${c.status==='CLOSED'?'var(--green)':c.status==='OPEN'?'var(--red)':'var(--yellow)'};">${c.status}</span></td>
+        <td style="font-size:10px;font-family:monospace;color:var(--accent)">${c.mitre_technique||'-'}</td>
+        <td style="font-size:11px">${c.assigned_to||'<span style="color:var(--muted)">Unassigned</span>'}</td>
+        <td style="font-size:11px;color:${c.sla_breached?'var(--red)':'var(--muted)'}">${c.age_hours}h ${c.sla_breached?'!️':''}</td>
+        <td style="font-size:10px;color:var(--muted)">${c.sla_hours}h</td>
+        <td style="font-size:10px">${c.note_count}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="openCaseDetail('${c.case_id}')">View</button>
+          ${S.role==='master'&&c.status!=='CLOSED'?`<button class="btn btn-sm btn-danger" onclick="closeCase('${c.case_id}')">Close</button>`:''}
+        </td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+async function createCase() {
+  const t = document.getElementById('case-title').value.trim();
+  if (!t) return;
+  const body = {
+    title: t,
+    description: document.getElementById('case-desc').value.trim() || t,
+    priority: document.getElementById('case-priority').value,
+    affected_ips: document.getElementById('case-ip').value.trim() ? [document.getElementById('case-ip').value.trim()] : [],
+  };
+  const r = await apiFetch('/cases', {method:'POST', body:JSON.stringify(body)});
+  if (r) { showPopup(`Case ${r.case_id} created`, 'LOW'); loadCases(); }
+}
+
+async function openCaseDetail(id) {
+  const c = await apiFetch(`/cases/${id}`);
+  if (!c) return;
+  const overlay = document.createElement('div');
+  overlay.style = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#000a;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:700px;max-height:85vh;overflow-y:auto;padding:28px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div><strong style="font-size:16px">${c.case_id}</strong> — ${c.title}</div>
+      <button class="btn btn-sm" onclick="this.closest('[style*=fixed]').remove()">Close</button>
+    </div>
+    <div class="row" style="gap:12px;margin-bottom:16px">
+      <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Priority</div><span class="badge sev-${c.priority}">${c.priority}</span></div>
+      <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Status</div><strong>${c.status}</strong></div>
+      <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Assigned</div><strong>${c.assigned_to||'—'}</strong></div>
+      <div class="card" style="flex:1;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Age</div><strong style="color:${c.sla_breached?'var(--red)':'var(--text)'}">${c.age_hours}h</strong></div>
+    </div>
+    <div class="card" style="margin-bottom:12px;padding:12px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Description</div>${c.description}</div>
+    ${c.mitre_technique?`<div class="card" style="margin-bottom:12px;padding:12px;background:#4A90D910">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">MITRE ATT&CK</div>
+      <strong style="font-family:monospace;color:var(--accent)">${c.mitre_technique}</strong> — ${c.mitre_tactic}
+    </div>`:''}
+    <div class="card" style="margin-bottom:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Timeline (${c.notes.length} notes)</div>
+      ${c.notes.map(n=>`<div style="border-left:2px solid var(--accent);padding:6px 10px;margin-bottom:8px">
+        <div style="font-size:10px;color:var(--muted)">${n.timestamp} — ${n.author} [${n.note_type}]</div>
+        <div style="font-size:12px;margin-top:2px">${n.content}</div>
+      </div>`).join('')||'<span style="color:var(--muted);font-size:12px">No notes yet</span>'}
+    </div>
+    <div class="row" style="gap:8px">
+      <textarea id="note-content-${id}" class="inp" placeholder="Add investigation note..." style="flex:3;min-height:40px;resize:vertical"></textarea>
+      <button class="btn btn-primary" onclick="addCaseNote('${id}')">Add Note</button>
+      ${S.role==='master'?`<button class="btn btn-sm" onclick="updateCaseStatus('${id}','IN_INVESTIGATION')">Investigate</button>
+       <button class="btn btn-sm btn-danger" onclick="updateCaseStatus('${id}','CLOSED')">Close</button>`:''}
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.remove(); });
+}
+
+async function addCaseNote(id) {
+  const content = document.getElementById(`note-content-${id}`)?.value?.trim();
+  if (!content) return;
+  await apiFetch(`/cases/${id}/notes`, {method:'POST', body:JSON.stringify({content,note_type:'note'})});
+  document.querySelectorAll('[style*=fixed]').forEach(el=>el.remove());
+  loadCases();
+}
+
+async function updateCaseStatus(id, status) {
+  await apiFetch(`/cases/${id}/status`, {method:'POST', body:JSON.stringify({status})});
+  document.querySelectorAll('[style*=fixed]').forEach(el=>el.remove());
+  loadCases();
+}
+
+async function closeCase(id) {
+  if (!confirm('Close this case?')) return;
+  await apiFetch(`/cases/${id}/close`, {method:'POST', body:JSON.stringify({})});
+  loadCases();
+}
+
+// ════════════════════════════════════════════════
+// THREAT INTEL PANEL
+// ════════════════════════════════════════════════
+function loadThreatIntel() {
+  const p = document.getElementById('panel-threat-intel');
+  p.innerHTML = `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:14px">Threat Intelligence Lookup</div>
+    <div class="row" style="gap:8px;align-items:flex-end">
+      <div style="flex:3">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Indicator</label>
+        <input id="ti-indicator" class="inp" placeholder="IP, Domain, or File Hash" onkeydown="if(event.key==='Enter')runTI()">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Type</label>
+        <select id="ti-type" class="inp">
+          <option value="ip">IP Address</option>
+          <option value="domain">Domain</option>
+          <option value="hash">File Hash</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="runTI()">Check</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      ${['185.220.101.1','45.33.32.156','5.188.86.172','malware.test','phishing.test',
+         '44d88612fea8a8f36de82e1278abb02f']
+        .map(q=>`<button class="btn btn-sm btn-secondary" onclick="quickTI('${q}')">${q}</button>`).join('')}
+    </div>
+  </div>
+  <div id="ti-result"></div>`;
+}
+
+function quickTI(q) {
+  document.getElementById('ti-indicator').value = q;
+  if (q.match(/^\d+\.\d+/)) document.getElementById('ti-type').value = 'ip';
+  else if (q.length === 32 || q.length === 64) document.getElementById('ti-type').value = 'hash';
+  else document.getElementById('ti-type').value = 'domain';
+  runTI();
+}
+
+async function runTI() {
+  const q = document.getElementById('ti-indicator').value.trim();
+  const t = document.getElementById('ti-type').value;
+  if (!q) return;
+  const r = document.getElementById('ti-result');
+  r.innerHTML = `<div style="text-align:center;color:var(--muted);padding:24px">Checking threat intelligence...</div>`;
+  const res = await apiFetch(`/threat-intel/${t}/${encodeURIComponent(q)}`);
+  if (!res) return;
+  const color = res.is_malicious ? 'var(--red)' : 'var(--green)';
+  const verdict = res.is_malicious ? 'MALICIOUS' : 'CLEAN';
+  r.innerHTML = `
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+      <div style="font-size:36px">${''}</div>
+      <div>
+        <div style="font-size:24px;font-weight:800;color:${color}">${verdict}</div>
+        <div style="font-family:monospace;font-size:14px;color:var(--text)">${res.indicator}</div>
+      </div>
+    </div>
+    <div class="row" style="gap:12px;margin-bottom:16px">
+      ${metricCard('Confidence', `${res.confidence}%`, color)}
+      ${metricCard('Reports', res.reports||0, 'var(--orange)')}
+      ${metricCard('Source', res.source, 'var(--accent)')}
+      ${metricCard('Country', res.country||'Unknown', 'var(--muted)')}
+    </div>
+    ${res.threat_types?.length?`<div style="margin-bottom:12px">
+      <span style="font-size:11px;color:var(--muted)">Threat Types: </span>
+      ${res.threat_types.map(t=>`<span class="badge" style="background:#f8514920;color:var(--red);margin-right:4px">${t}</span>`).join('')}
+    </div>`:''}
+    ${res.isp?`<div style="font-size:12px;color:var(--muted)">ISP: ${res.isp}</div>`:''}
+    ${res.last_seen?`<div style="font-size:12px;color:var(--muted)">Last Seen: ${res.last_seen}</div>`:''}
+    ${res.is_malicious?`<div style="margin-top:16px">
+      <button class="btn btn-danger" onclick="blockFromTI('${res.indicator}')">Block IP</button>
+      <button class="btn btn-primary" onclick="addIOCFromTI(${JSON.stringify(res).replace(/"/g,'&quot;')})">Add to IOC</button>
+    </div>`:''}
+  </div>`;
+}
+
+async function blockFromTI(ip) {
+  await apiFetch('/firewall/block-ip', {method:'POST', body:JSON.stringify({ip,reason:'Threat Intel hit'})});
+  showPopup(`Blocked ${ip}`, 'HIGH');
+}
+
+async function addIOCFromTI(ti) {
+  await apiFetch('/ioc', {method:'POST', body:JSON.stringify({
+    indicator: ti.indicator, ioc_type: ti.indicator_type,
+    threat_level: ti.confidence>=80?'critical':ti.confidence>=50?'high':'medium',
+    description: `TI Hit: ${ti.threat_types?.join(', ')||'Unknown'}`,
+    source: ti.source,
+  })});
+  showPopup(`IOC added: ${ti.indicator}`, 'LOW');
+}
+
+// ════════════════════════════════════════════════
+// HONEYPOT PANEL
+// ════════════════════════════════════════════════
+async function loadHoneypot() {
+  const p = document.getElementById('panel-honeypot');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading honeypot data...</div>`;
+  const res = await apiFetch('/honeypot/hits?limit=100');
+  if (!res) return;
+  const {hits=[], stats={}} = res;
+  const svcColors = {SSH:'var(--accent)',FTP:'var(--yellow)',HTTP:'var(--green)'};
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Total Hits', stats.total_hits||0, 'var(--red)')}
+    ${metricCard('Unique Attackers', stats.unique_attackers||0, 'var(--orange)')}
+    ${metricCard('SSH Hits', stats.by_service?.SSH||0, 'var(--accent)')}
+    ${metricCard('FTP Hits', stats.by_service?.FTP||0, 'var(--yellow)')}
+    ${metricCard('HTTP Hits', stats.by_service?.HTTP||0, 'var(--green)')}
+  </div>
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    <div class="card" style="flex:2">
+      <div class="card-title" style="margin-bottom:12px">Honeypot Services</div>
+      ${Object.entries(stats.services||{}).map(([svc,port])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div><strong style="color:${svcColors[svc.toUpperCase()]||'var(--text)'}">${svc.toUpperCase()}</strong></div>
+          <div style="font-family:monospace;font-size:12px;color:var(--muted)">${port}</div>
+          <div class="status-dot ${stats.running?'up':'down'}"></div>
+        </div>`).join('')}
+      <div style="margin-top:12px;text-align:right">
+        <span style="font-size:11px;color:var(--muted)">Status: </span>
+        <strong style="color:${stats.running?'var(--green)':'var(--red)'}">${stats.running?'ACTIVE':'STOPPED'}</strong>
+      </div>
+    </div>
+    <div class="card" style="flex:2">
+      <div class="card-title" style="margin-bottom:12px">Top Attackers</div>
+      ${(stats.top_attackers||[]).map(a=>`
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <code style="font-size:11px">${a.ip}</code>
+          <strong style="color:var(--red)">${a.hits} hits</strong>
+        </div>`).join('')||'<span style="color:var(--muted);font-size:12px">No attackers yet</span>'}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Recent Hits</div>
+    <table class="tbl"><thead><tr>
+      <th>Time</th><th>Service</th><th>Attacker IP</th><th>Src Port</th><th>Captured Data</th><th>Action</th>
+    </tr></thead><tbody>
+    ${hits.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No honeypot hits yet</td></tr>':
+      hits.map(h=>`<tr>
+        <td style="font-size:10px;color:var(--muted)">${h.timestamp}</td>
+        <td><span class="badge" style="background:${svcColors[h.service]||'var(--muted)'}20;color:${svcColors[h.service]||'var(--text)'}">${h.service}</span></td>
+        <td><code>${h.src_ip}</code></td>
+        <td style="font-size:10px;color:var(--muted)">${h.src_port}</td>
+        <td style="font-family:monospace;font-size:10px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h.data}">${h.data}</td>
+        <td>
+          <button class="btn btn-sm btn-danger" onclick="quickBlock('${h.src_ip}')">Block</button>
+          <button class="btn btn-sm" onclick="switchTab('threat-intel');quickTI('${h.src_ip}')">Intel</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// ASSET MANAGEMENT PANEL
+// ════════════════════════════════════════════════
+async function loadAssets() {
+  const p = document.getElementById('panel-assets');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading assets...</div>`;
+  const res = await apiFetch('/assets');
+  if (!res) return;
+  const {assets=[], stats={}} = res;
+  const typeColors = {dc:'var(--red)',database:'var(--orange)',web:'var(--yellow)',
+    server:'var(--accent)',router:'var(--green)',workstation:'var(--muted)',iot:'#a78bfa'};
+  const critBar = (c) => `<div style="display:flex;align-items:center;gap:6px">
+    <div style="width:${c*10}px;height:6px;background:${c>=8?'var(--red)':c>=5?'var(--yellow)':'var(--green)'};border-radius:3px"></div>
+    <span style="font-size:11px;font-weight:700;color:${c>=8?'var(--red)':c>=5?'var(--yellow)':'var(--green)'}">${c}/10</span>
+  </div>`;
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Total Assets', stats.total||0, 'var(--accent)')}
+    ${Object.entries(stats.by_type||{}).slice(0,4).map(([t,n])=>metricCard(t.toUpperCase(),n,typeColors[t]||'var(--muted)')).join('')}
+  </div>
+  ${S.role==='master'?`<div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:12px">➕ Add Asset</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <input id="a-name" class="inp" placeholder="Asset Name" style="flex:2;min-width:150px">
+      <input id="a-ip"   class="inp" placeholder="IP Address"  style="flex:1;min-width:120px">
+      <select id="a-type" class="inp" style="flex:1;min-width:120px">
+        <option value="server">Server</option><option value="dc">Domain Controller</option>
+        <option value="database">Database</option><option value="web">Web Server</option>
+        <option value="workstation">Workstation</option><option value="router">Router/FW</option>
+        <option value="iot">IoT Device</option>
+      </select>
+      <select id="a-crit" class="inp" style="flex:1;min-width:100px">
+        ${[10,9,8,7,6,5,4,3,2,1].map(n=>`<option value="${n}">${n} - ${n>=9?'Critical':n>=7?'High':n>=5?'Medium':'Low'}</option>`).join('')}
+      </select>
+      <input id="a-owner" class="inp" placeholder="Owner" style="flex:1;min-width:100px">
+      <button class="btn btn-primary" onclick="addAsset()">Add</button>
+    </div>
+  </div>`:''}
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Asset Inventory (${assets.length})</div>
+    <table class="tbl"><thead><tr>
+      <th>Name</th><th>IP</th><th>Type</th><th>Criticality</th>
+      <th>Owner</th><th>Alerts</th><th>Last Seen</th>
+      ${S.role==='master'?'<th>Action</th>':''}
+    </tr></thead><tbody>
+    ${assets.map(a=>`<tr>
+      <td><strong>${a.name}</strong>${a.description?`<br><span style="font-size:10px;color:var(--muted)">${a.description}</span>`:''}</td>
+      <td><code>${a.ip}</code></td>
+      <td><span class="badge" style="background:${(typeColors[a.asset_type]||'var(--muted)')}20;color:${typeColors[a.asset_type]||'var(--muted)'}">${a.asset_type.toUpperCase()}</span></td>
+      <td>${critBar(a.criticality)}</td>
+      <td style="font-size:11px">${a.owner}</td>
+      <td><strong style="color:${a.alert_count>0?'var(--red)':'var(--muted)'}">${a.alert_count}</strong></td>
+      <td style="font-size:10px;color:var(--muted)">${a.last_seen}</td>
+      ${S.role==='master'?`<td>
+        <button class="btn btn-sm" onclick="lookupAssetTI('${a.ip}')">TI Lookup</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteAsset('${a.asset_id}')">Del</button>
+      </td>`:''}
+    </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+async function addAsset() {
+  const body = {
+    name: document.getElementById('a-name').value.trim(),
+    ip: document.getElementById('a-ip').value.trim(),
+    asset_type: document.getElementById('a-type').value,
+    criticality: parseInt(document.getElementById('a-crit').value),
+    owner: document.getElementById('a-owner').value.trim(),
+    description: '',
+  };
+  if (!body.name || !body.ip) return;
+  const r = await apiFetch('/assets', {method:'POST', body:JSON.stringify(body)});
+  if (r) { showPopup(`Asset added: ${body.name}`, 'LOW'); loadAssets(); }
+}
+
+async function deleteAsset(id) {
+  if (!confirm('Remove this asset?')) return;
+  await apiFetch(`/assets/${id}`, {method:'DELETE'});
+  loadAssets();
+}
+
+function lookupAssetTI(ip) {
+  document.getElementById('ti-indicator') && (document.getElementById('ti-indicator').value = ip);
+  switchTab('threat-intel');
+  setTimeout(runTI, 100);
+}
+
+// ════════════════════════════════════════════════
+// USER BEHAVIOR ANALYTICS PANEL
+// ════════════════════════════════════════════════
+async function loadUBA() {
+  const p = document.getElementById('panel-uba');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading UBA data...</div>`;
+  const res = await apiFetch('/uba/alerts?limit=100');
+  if (!res) return;
+  const {alerts=[], stats={}} = res;
+  const typeColors = {unusual_hour:'var(--orange)',new_ip:'var(--yellow)',
+    activity_burst:'var(--red)',impossible_travel:'#f472b6'};
+  const typeIcons  = {unusual_hour:'',new_ip:'',activity_burst:'',impossible_travel:''};
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Tracked Users', stats.total_users||0, 'var(--accent)')}
+    ${metricCard('UBA Alerts', stats.total_alerts||0, 'var(--red)')}
+    ${metricCard('Unresolved', stats.unresolved||0, 'var(--orange)')}
+  </div>
+  <div class="card" style="margin-bottom:16px;background:#f8514908;border-color:#f8514940">
+    <div class="card-title" style="margin-bottom:8px">How UBA Works</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.7">
+      UBA monitors every login. It learns each user's <strong>normal hours</strong> and <strong>known IPs</strong>.
+      If admin logs in at <strong>3 AM</strong> or from a <strong>new IP</strong> — it fires an alert and
+      boosts the risk score automatically. Analysts can also be monitored for activity bursts.
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">UBA Alerts</div>
+    <table class="tbl"><thead><tr>
+      <th>Time</th><th>User</th><th>Type</th><th>Description</th><th>Risk Boost</th><th>IP</th>
+    </tr></thead><tbody>
+    ${alerts.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No UBA alerts yet — alerts appear when users login at unusual hours or from new IPs</td></tr>':
+      alerts.map(a=>`<tr>
+        <td style="font-size:10px;color:var(--muted)">${a.timestamp}</td>
+        <td><strong>${a.username}</strong></td>
+        <td><span class="badge" style="background:${(typeColors[a.alert_type]||'var(--muted)')}20;color:${typeColors[a.alert_type]||'var(--muted)'}">
+          ${typeIcons[a.alert_type]||''} ${a.alert_type.replace(/_/g,' ').toUpperCase()}
+        </span></td>
+        <td style="font-size:11px;max-width:280px">${a.description}</td>
+        <td><strong style="color:var(--red)">+${a.risk_boost}</strong></td>
+        <td><code style="font-size:10px">${a.src_ip||'-'}</code></td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// SOAR PANEL
+// ════════════════════════════════════════════════
+async function loadSOAR() {
+  const p = document.getElementById('panel-soar');
+  p.innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted)">Loading SOAR runs...</div>`;
+  const res = await apiFetch('/soar/runs?limit=100');
+  if (!res) return;
+  const {runs=[], stats={}} = res;
+  const pbColors = {
+    critical_auto_response:'var(--red)',high_auto_monitor:'var(--orange)',
+    ioc_match_response:'var(--yellow)',honeypot_response:'var(--accent)',
+    correlation_response:'#a78bfa'
+  };
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Total Runs', stats.total_runs||0, 'var(--accent)')}
+    ${Object.entries(stats.by_playbook||{}).map(([pb,n])=>
+      `<div class="card" style="flex:1;text-align:center;padding:16px">
+        <div style="font-size:22px;font-weight:800;color:${pbColors[pb]||'var(--muted)'}">${n}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">${pb.replace(/_/g,' ')}</div>
+      </div>`).join('')}
+  </div>
+  <div class="card" style="margin-bottom:16px;background:#4A90D910;border-color:#4A90D940">
+    <div class="card-title" style="margin-bottom:8px">SOAR Playbooks</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">
+      <div><strong style="color:var(--red)">critical_auto_response</strong><br><span style="color:var(--muted)">Risk≥90 → Block IP + Create Case + Notify</span></div>
+      <div><strong style="color:var(--orange)">high_auto_monitor</strong><br><span style="color:var(--muted)">Risk 70-89 → Create Case + Notify</span></div>
+      <div><strong style="color:var(--yellow)">ioc_match_response</strong><br><span style="color:var(--muted)">IOC Hit → Block + Add IOC + Create Case</span></div>
+      <div><strong style="color:var(--accent)">honeypot_response</strong><br><span style="color:var(--muted)">Honeypot Hit → Block + IOC + Case</span></div>
+      <div><strong style="color:#a78bfa">correlation_response</strong><br><span style="color:var(--muted)">Correlated Incident → Case + Notify</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">SOAR Run History</div>
+    <table class="tbl"><thead><tr>
+      <th>Run ID</th><th>Playbook</th><th>Trigger</th><th>Source IP</th>
+      <th>Actions</th><th>Case</th><th>Time</th>
+    </tr></thead><tbody>
+    ${runs.length===0?`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">
+      No SOAR runs yet — they fire automatically when risk≥70, IOC match, honeypot hit, or correlation fires
+    </td></tr>`:
+      runs.map(r=>`<tr>
+        <td><code style="font-size:10px;color:var(--accent)">${r.run_id}</code></td>
+        <td><span class="badge" style="background:${(pbColors[r.playbook]||'var(--muted)')}20;color:${pbColors[r.playbook]||'var(--muted)'}">
+          ${r.playbook.replace(/_/g,' ')}
+        </span></td>
+        <td style="font-size:11px;color:var(--muted)">${r.trigger}</td>
+        <td><code style="font-size:11px">${r.src_ip}</code></td>
+        <td style="font-size:10px;max-width:220px">
+          ${r.actions_taken.map(a=>`<div style="color:${a.startsWith('BLOCKED')?'var(--red)':a.startsWith('CASE')?'var(--green)':'var(--muted)'}">• ${a}</div>`).join('')}
+        </td>
+        <td style="font-size:10px;font-family:monospace;color:var(--accent)">${r.case_id||'-'}</td>
+        <td style="font-size:10px;color:var(--muted)">${r.timestamp}</td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// MAINTENANCE PANEL
+// ════════════════════════════════════════════════
+async function loadMaintenance() {
+  const p = document.getElementById('panel-maintenance');
+  const stats = await apiFetch('/maintenance/stats');
+  p.innerHTML = `
+  <div class="row" style="gap:12px;margin-bottom:16px">
+    ${metricCard('Events in Memory', stats?.events_in_memory||0, 'var(--accent)')}
+    ${metricCard('Open Cases', stats?.cases_in_memory||0, 'var(--yellow)')}
+    ${metricCard('Active IOCs', stats?.iocs_active||0, 'var(--green)')}
+    ${metricCard('Incidents', stats?.correlation_incidents||0, 'var(--orange)')}
+    ${metricCard('SOAR Runs', stats?.soar_runs||0, 'var(--accent)')}
+    ${metricCard('Log Size', `${stats?.log_size_kb||0} KB`, 'var(--muted)')}
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:16px">Clear Data</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">
+      Use this during testing to reset the dashboard without restarting the server.
+      This clears the in-memory store only — does not delete files on disk.
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="clearData('events')">Clear Events</button>
+      <button class="btn btn-secondary" onclick="clearData('alerts')">Clear Alerts</button>
+      <button class="btn btn-secondary" onclick="clearData('correlations')">Clear Incidents</button>
+      <button class="btn btn-secondary" onclick="clearData('cases')">Clear Cases</button>
+      <button class="btn btn-danger"    onclick="clearData('all')">Clear Everything</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:16px">Script-Based Cleanup (run from terminal)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      For file-level cleanup, run these scripts from your terminal:
+    </div>
+    <div class="row" style="gap:12px">
+      <div class="card" style="flex:1;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">Full Delete</div>
+        <code style="font-size:11px;color:var(--text)">python maintenance/delete.py</code>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Deletes all logs, reports, cache</div>
+      </div>
+      <div class="card" style="flex:1;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">Smart Cleanup</div>
+        <code style="font-size:11px;color:var(--text)">python maintenance/cleanup.py</code>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Removes data older than 30 days</div>
+      </div>
+      <div class="card" style="flex:1;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:6px">Backup</div>
+        <code style="font-size:11px;color:var(--text)">python maintenance/backup.py</code>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Creates backup_YYYYMMDD.zip</div>
+      </div>
+      <div class="card" style="flex:1;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:6px">Restore</div>
+        <code style="font-size:11px;color:var(--text)">python maintenance/restore.py</code>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Restores from backup zip</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Virus/AV False Positives</div>
+    <div style="font-size:12px;line-height:1.8;color:var(--muted)">
+      The YARA scanner flags <strong>.dll / .exe / .jar</strong> files from Eclipse, Gradle, JDK
+      as <em>SuspiciousShellcode</em>. These are <strong style="color:var(--green)">false positives</strong>
+      — legitimate developer tools contain binary patterns that match generic YARA rules.<br><br>
+      <strong style="color:var(--text)">Fix:</strong> Go to <strong>Virus/AV</strong> tab → toggle off,
+      or add exclusion paths in <code>detection/virus_engine.py</code> under <code>EXCLUDED_PATHS</code>.
+    </div>
+  </div>`;
+}
+
+async function clearData(target) {
+  const labels = {events:'all events',alerts:'all alerts',correlations:'all incidents',
+                  cases:'all cases',all:'EVERYTHING'};
+  if (!confirm(`Clear ${labels[target]}? This cannot be undone.`)) return;
+  const r = await apiFetch('/maintenance/clear', {method:'POST', body:JSON.stringify({target})});
+  if (r) {
+    showPopup(`Cleared: ${r.cleared.join(', ')}`, 'LOW');
+    loadMaintenance();
+    if (target==='all' || target==='events') S.events=[];
+  }
+}
+
+</script>
+</body>
+</html>
