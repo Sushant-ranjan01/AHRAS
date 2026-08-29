@@ -1,0 +1,121 @@
+# ================================
+# AHRAS - Git Ignore
+# ================================
+
+# ----------------
+# Environment / Secrets
+# ----------------
+.env
+.env.*
+!.env.example
+
+# ----------------
+# Python Virtual Environment
+# ----------------
+venv/
+.venv/
+env/
+ENV/
+
+# ----------------
+# Python Cache
+# ----------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# ----------------
+# Jupyter
+# ----------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ----------------
+# IDE / Editors
+# ----------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ----------------
+# OS Files
+# ----------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----------------
+# Logs
+# ----------------
+*.log
+logs/
+
+# ----------------
+# Test / Coverage
+# ----------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# ----------------
+# Build / Packaging
+# ----------------
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ----------------
+# Temporary Files
+# ----------------
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# ----------------
+# ML / Model Cache
+# ----------------
+*.pkl
+*.pickle
+*.joblib
+*.pt
+*.pth
+*.onnx
+
+# ----------------
+# Generated ML Data
+# ----------------
+data/*.npy
+data/*.npz
+
+
+# ----------------
+# Runtime / Database
+# ----------------
+*.db
+*.sqlite
+*.sqlite3
+
+# ----------------
+# Generated Reports
+# ----------------
+reports/generated/
+reports/output/
+
+# ----------------
+# Temporary AHRAS Files
+# ----------------
+*.bak
+*.old
+
+# ----------------
+# CSV / Dataset Files
+# ----------------
+*.csv

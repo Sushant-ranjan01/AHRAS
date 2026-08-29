@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-08-23 17:02:23 UTC",
+  "forecasting": {
+    "visits_per_ip": 12,
+    "critical_threshold": 85.0,
+    "accuracy": {
+      "escalating": {
+        "n": 270,
+        "mae": 6.578,
+        "rmse": 14.806
+      },
+      "stable_control": {
+        "n": 270,
+        "mae": 0.738,
+        "rmse": 1.717
+      }
+    },
+    "lead_time": {
+      "n_escalating_ips": 30,
+      "n_crossed_critical": 30,
+      "n_warned_before_crossing": 0,
+      "warning_coverage_pct": 0.0,
+      "mean_lead_time_events": null,
+      "median_lead_time_events": null,
+      "min_lead_time_events": null,
+      "max_lead_time_events": null,
+      "coverage_note": "Low/zero coverage here reflects RiskEngine's own rule_boosts + strength_multiplier being discrete step functions (multiple behavioural thresholds firing on the same event) rather than a smooth continuation of the pre-crossing trend -- see this function's docstring. This is a property of the scored risk function, verified across ramp steepness/duration, not a forecaster or harness bug."
+    },
+    "stable_control_false_warnings": 0,
+    "stable_control_ips": 30
+  }
+}

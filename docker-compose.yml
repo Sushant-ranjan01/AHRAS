@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # ── MongoDB ────────────────────────────────────────────────
+  # Required — main.py/database/connection.py talks to MONGO_URI and there
+  # was no mongo service in this file before, so `docker-compose up` alone
+  # never actually gave you persistence; AHRAS was silently falling back to
+  # in-memory storage. Uses network_mode: host (see note on `ahras` below)
+  # so it's reachable at localhost:27017 exactly like MONGO_URI expects.
+  mongo:
+    image: mongo:7
+    container_name: ahras-mongo
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DB:-AHRAS_DB}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Ollama (local LLM for SOAR copilot + Security Intelligence) ─────────
+  # Optional but recommended. Nothing crashes without it — soar/copilot.py
+  # and security_intelligence/engine.py both fall back to deterministic
+  # templates when AHRAS_LOCAL_LLM_URL is unreachable — but the "LLM
+  # narration" features stay inert (template-only) until this is up AND a
+  # model is pulled. Pull a model once the container is running:
+  #   docker exec -it ahras-ollama ollama pull llama3
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ahras-ollama
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ollama_data:/root/.ollama
+    # Uncomment to use an NVIDIA GPU (requires the nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ── AHRAS Core ────────────────────────────────────────────
+  ahras:
+    build: .
+    container_name: ahras-core
+    restart: unless-stopped
+    network_mode: host          # Required for packet capture
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - mongo
+      - ollama
+    environment:
+      - AHRAS_HOST=0.0.0.0
+      - AHRAS_PORT=8000
+      - DEBUG=${DEBUG:-true}
+      # No insecure fallback here on purpose — config/settings.py now refuses
+      # to boot with the placeholder key when DEBUG=false. Set a real
+      # SECRET_KEY in your .env before deploying (see README/INSTALLATION).
+      - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in your .env before running}
+      - MONGO_URI=${MONGO_URI:-mongodb://localhost:27017}
+      - MONGO_DB=${MONGO_DB:-AHRAS_DB}
+      - ABUSEIPDB_KEY=${ABUSEIPDB_KEY:-}
+      - VIRUSTOTAL_KEY=${VIRUSTOTAL_KEY:-}
+      - OTX_KEY=${OTX_KEY:-}
+      - HONEYPOT_SSH_PORT=2222
+      - HONEYPOT_FTP_PORT=2121
+      - HONEYPOT_HTTP_PORT=8081
+      # Local LLM (Ollama) — used by SOAR copilot + Security Intelligence
+      # narration. Leave AHRAS_LOCAL_LLM_URL unset to keep both features on
+      # deterministic templates instead.
+      - AHRAS_LOCAL_LLM_URL=${AHRAS_LOCAL_LLM_URL:-http://localhost:11434/api/generate}
+      - AHRAS_LOCAL_LLM_MODEL=${AHRAS_LOCAL_LLM_MODEL:-llama3}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+      - "2222:2222"   # Honeypot SSH
+      - "2121:2121"   # Honeypot FTP
+      - "8081:8081"   # Honeypot HTTP
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Nginx reverse proxy (optional) ────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ahras-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - ahras
+    profiles:
+      - production
+
+volumes:
+  logs:
+  data:
+  mongo_data:
+  ollama_data:
