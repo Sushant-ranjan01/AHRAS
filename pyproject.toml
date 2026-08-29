@@ -1,0 +1,51 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+log_cli = true
+log_cli_level = "WARNING"
+markers = [
+  "unit: fast isolated unit tests",
+  "integration: tests across multiple AHRAS modules",
+  "security: authentication, authorization, and hardening tests",
+  "performance: opt-in performance tests; run with AHRAS_RUN_PERF=1",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["auth", "api", "security", "rbac", "database", "detection", "risk_engine", "risk_explainer", "xai", "observability"]
+omit = ["*/tests/*", "*/venv/*", "*/.venv/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 100
+exclude = [".git", ".venv", "venv", "build", "dist", "reports", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+exclude = '/(\.git|\.venv|venv|build|dist|reports|data)/'
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_optional = true
+exclude = ["tests", "venv", ".venv", "build", "dist", "reports", "data"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv", "build", "dist", "reports", "data"]

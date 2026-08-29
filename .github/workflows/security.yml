@@ -1,0 +1,30 @@
+name: AHRAS Security CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-cov ruff black mypy bandit pip-audit
+      - name: Syntax check
+        run: python -m compileall -q .
+      - name: Ruff
+        run: ruff check .
+      - name: Black
+        run: black --check .
+      - name: Tests
+        run: pytest -q --disable-warnings --maxfail=1 --cov=. --cov-report=term-missing
+      - name: Mypy
+        run: mypy auth api security rbac database detection risk_engine risk_explainer xai observability
+      - name: Bandit
+        run: bandit -r . -x ./venv,./.venv,./tests -ll
+      - name: Dependency audit
+        run: pip-audit -r requirements.txt

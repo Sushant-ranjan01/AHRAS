@@ -1,0 +1,22 @@
+{
+  "models": [
+    {
+      "version": "iforest-20260829-133516",
+      "artifact": "models\\registry\\iforest-20260829-133516.joblib",
+      "sha256": "120b8c6a3ed1933194faef0a6f249cdf71a9a525f2c42288ce46ea9bd36d4885",
+      "created_at": 1788010516.840175,
+      "metrics": {},
+      "metadata": {
+        "algorithm": "IsolationForest",
+        "feature_count": 16,
+        "training_rows": 6499,
+        "contamination": 0.05,
+        "calibration": {
+          "score_lo": -0.11072465534633628,
+          "score_hi": 0.18075668551675841
+        }
+      }
+    }
+  ],
+  "active_version": "iforest-20260829-133516"
+}
