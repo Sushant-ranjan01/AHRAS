@@ -5,6 +5,7 @@ import math
 import socket
 import time
 import logging
+import threading
 from collections import defaultdict
 
 logger = logging.getLogger("ahras.risk")
@@ -145,7 +146,22 @@ class RiskEngine:
         self._asset_mgr = None
         self._adaptive_learner = None
         self._skip_dns = skip_dns
+        # Latest real RiskResult actually computed per source IP. Populated
+        # on every evaluate() call so callers (e.g. the Risk Explainer's
+        # "enter an IP" flow) can retrieve and explain the ACTUAL most
+        # recent detection for that IP instead of having to fabricate a
+        # synthetic "Normal, 0 packets, no anomaly" event and re-score it
+        # from scratch -- which produced a different, misleadingly-LOW
+        # score than the one already shown for that IP everywhere else
+        # (dashboard, event list, alerts).
+        self._latest_by_ip = {}
+        self._cache_lock = threading.Lock()
         logger.info("RiskEngine ready (v5 multi-signal fusion)%s", " [skip_dns]" if skip_dns else "")
+
+    def get_latest(self, ip: str) -> "RiskResult | None":
+        """Return the most recent RiskResult actually computed by evaluate()
+        for this IP, or None if no real event has been scored for it yet."""
+        return self._latest_by_ip.get(ip)
 
     def set_adaptive_learner(self, learner):
         self._adaptive_learner = learner
@@ -165,6 +181,18 @@ class RiskEngine:
         self._asset_mgr = am
 
     def evaluate(self, det) -> RiskResult:
+        """Score `det` and cache the resulting RiskResult as the latest
+        known result for its src_ip (see get_latest())."""
+        result = self._evaluate_raw(det)
+        try:
+            if result.src_ip and result.src_ip != "unknown":
+                with self._cache_lock:
+                    self._latest_by_ip[result.src_ip] = result
+        except Exception:
+            logger.debug("Failed to cache latest RiskResult for IP", exc_info=True)
+        return result
+
+    def _evaluate_raw(self, det) -> RiskResult:
         if hasattr(det, "to_dict"):
             d = det.to_dict()
             src_ip = getattr(det, "src_ip", d.get("src_ip", ""))

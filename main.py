@@ -1304,12 +1304,19 @@ async def normalizer_stats(_: dict = Depends(get_current_user)):
 async def explain_risk(src_ip: str, _: dict = Depends(get_current_user)):
     """
     Generate a full risk explanation for a given source IP.
-    Scores a synthetic event for that IP through the risk engine,
-    then breaks the result into labelled sub-components.
+    Explains the ACTUAL most recent RiskResult already computed for this
+    IP (i.e. exactly what the dashboard/event list/alerts are showing),
+    rather than fabricating a synthetic "Normal, 0 packets, no anomaly"
+    event and scoring that from scratch -- which could produce a
+    different, misleadingly-LOW score.
+    Only falls back to a synthetic Normal event if this IP has never
+    actually been scored yet (no data to explain at all).
     """
-    det = {"src_ip": src_ip, "attack_type": "Normal",
-           "confidence": 0.5, "packet_count": 0, "anomaly_flag": False}
-    r = risk_eng.evaluate(det)
+    r = risk_eng.get_latest(src_ip)
+    if r is None:
+        det = {"src_ip": src_ip, "attack_type": "Normal",
+               "confidence": 0.5, "packet_count": 0, "anomaly_flag": False}
+        r = risk_eng.evaluate(det)
     explanation = risk_explainer.explain(r)
     exp_dict = explanation.to_dict()
     _explanation_history.append(exp_dict)
@@ -1346,9 +1353,11 @@ async def risk_weights(_: dict = Depends(get_current_user)):
 @app.get("/api/xai/explain/{src_ip}")
 async def xai_explain(src_ip: str, _: dict = Depends(get_current_user)):
     """Full XAI report: base explanation + counterfactual + confidence."""
-    det = {"src_ip": src_ip, "attack_type": "Normal",
-           "confidence": 0.5, "packet_count": 0, "anomaly_flag": False}
-    r = risk_eng.evaluate(det)
+    r = risk_eng.get_latest(src_ip)
+    if r is None:
+        det = {"src_ip": src_ip, "attack_type": "Normal",
+               "confidence": 0.5, "packet_count": 0, "anomaly_flag": False}
+        r = risk_eng.evaluate(det)
     explanation = risk_explainer.explain(r)
     exp_dict = explanation.to_dict()
     _explanation_history.append(exp_dict)
@@ -1362,9 +1371,11 @@ async def xai_explain(src_ip: str, _: dict = Depends(get_current_user)):
 @app.get("/api/xai/counterfactual/{src_ip}")
 async def xai_counterfactual(src_ip: str, all_tiers: bool = False, _: dict = Depends(get_current_user)):
     """What's the smallest change that would lower this IP's severity tier?"""
-    det = {"src_ip": src_ip, "attack_type": "Normal",
-           "confidence": 0.5, "packet_count": 0, "anomaly_flag": False}
-    r = risk_eng.evaluate(det)
+    r = risk_eng.get_latest(src_ip)
+    if r is None:
+        det = {"src_ip": src_ip, "attack_type": "Normal",
+               "confidence": 0.5, "packet_count": 0, "anomaly_flag": False}
+        r = risk_eng.evaluate(det)
     exp_dict = risk_explainer.explain(r).to_dict()
     if all_tiers:
         cfs = xai_explainer.all_counterfactuals(exp_dict)

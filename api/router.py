@@ -370,6 +370,13 @@ async def get_risk(
     """
     Score an indicator through the risk engine.
     Set explain=true to get the full component breakdown.
+
+    If `attack_type` is left at its default ("Normal"), this returns the
+    ACTUAL most recent RiskResult already computed for this IP (matching
+    the dashboard/event list/alerts) rather than fabricating a synthetic
+    "Normal, 0 packets, no anomaly" event and re-scoring it -- which could
+    disagree with the real score shown elsewhere. Pass an explicit
+    attack_type to force a fresh synthetic what-if evaluation instead.
     """
     if not ip:
         raise HTTPException(400, "ip parameter is required")
@@ -377,21 +384,22 @@ async def get_risk(
     risk_eng = mods["risk_eng"]
     hist_risk = mods.get("hist_risk")
 
-    det = {
-        "src_ip": ip, "attack_type": attack_type,
-        "confidence": 0.5, "packet_count": 0, "anomaly_flag": False,
-    }
-    if hist_risk:
-        det["history_boost"] = hist_risk.get_boost(ip)
-
-    result = risk_eng.evaluate(det)
+    result = risk_eng.get_latest(ip) if attack_type == "Normal" else None
+    if result is None:
+        det = {
+            "src_ip": ip, "attack_type": attack_type,
+            "confidence": 0.5, "packet_count": 0, "anomaly_flag": False,
+        }
+        if hist_risk:
+            det["history_boost"] = hist_risk.get_boost(ip)
+        result = risk_eng.evaluate(det)
     resp = {
         "ip": ip,
         "risk_score": result.risk_score_100,
         "severity":   result.severity,
     }
     if hist_risk:
-        resp["history_boost"] = det.get("history_boost", 0)
+        resp["history_boost"] = result.history_boost
         h = hist_risk.get_history_dict(ip)
         if h:
             resp["history"] = {
